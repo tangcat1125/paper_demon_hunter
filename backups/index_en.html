@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Paper Demon Hunter: Sunset Relic War - Stage 1</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            touch-action: none;
+        }
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            z-index: 10;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px black;
+        }
+        .bar-container {
+            width: 200px;
+            height: 20px;
+            background-color: rgba(0,0,0,0.5);
+            border: 2px solid #fff;
+            margin-bottom: 5px;
+        }
+        #hp-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #ff3333;
+            transition: width 0.2s;
+        }
+        #status-text {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        #relic-status {
+            color: #ffd700;
+            font-size: 20px;
+            margin-top: 5px;
+            display: none;
+            font-weight: bold;
+        }
+        
+        /* Parchment Radar Styling */
+        #radar-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 150px;
+            background-color: #d4b581;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E");
+            border: 4px solid #6b4423;
+            border-radius: 8px;
+            padding: 5px;
+            box-shadow: 3px 3px 10px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        #radar {
+            width: 100%;
+            height: 150px;
+            background-color: rgba(255,255,255,0.1);
+            border: 1px dashed #8b5a2b;
+        }
+        #radar-title {
+            text-align: center;
+            color: #4a2e15;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 5px;
+            text-shadow: none;
+        }
+
+        #boss-warning {
+            position: absolute;
+            top: 30%;
+            width: 100%;
+            text-align: center;
+            color: #ff0000;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 2px 2px 10px black;
+            z-index: 15;
+            display: none;
+            pointer-events: none;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        #time-display {
+            position: absolute;
+            top: 210px; /* Positioned below radar */
+            right: 10px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 10;
+            text-shadow: 1px 1px 2px black;
+        }
+        #controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+            text-align: center;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 20;
+            display: none;
+        }
+        #overlay h1 { font-size: 48px; margin-bottom: 20px; }
+        #overlay button {
+            padding: 15px 30px;
+            font-size: 24px;
+            cursor: pointer;
+            background-color: #555;
+            color: white;
+            border: 2px solid white;
+            border-radius: 10px;
+        }
+        #overlay button:hover { background-color: #777; }
+        
+        .floating-text {
+            position: absolute;
+            color: white;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            text-shadow: 1px 1px 2px black;
+            z-index: 15;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <div id="hud">
+        <div>Hunter HP:</div>
+        <div class="bar-container"><div id="hp-bar"></div></div>
+        <div id="status-text">Mission: Repair houses to find the relic before the Vampire Lord arrives!</div>
+        <div id="relic-status">✨ Relic Acquired! Awaiting the Vampire Lord's arrival!</div>
+    </div>
+    
+    <!-- Radar UI -->
+    <div id="radar-container">
+        <canvas id="radar" width="150" height="150"></canvas>
+        <div id="radar-title">Demon Radar</div>
+    </div>
+
+    <div id="boss-warning">⚠️ WARNING: Vampire Lord Has Arrived ⚠️</div>
+    
+    <div id="time-display">18:00 (Dusk)</div>
+    
+    <div id="controls-hint">
+        [Click Ground] Move | [Click Enemy] Speed up shooting | [Click House] Speed up repair<br>
+        (Auto-shoot Enabled)
+    </div>
+
+    <div id="overlay">
+        <h1 id="end-title">Game Over</h1>
+        <p id="end-desc" style="font-size: 20px; margin-bottom: 30px;"></p>
+        <button onclick="location.reload()">Try Again</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <script>
+        // --- Game Global Variables ---
+        let scene, camera, renderer;
+        let raycaster, mouse;
+        let gameActive = true;
+        
+        // Time and Phases
+        let gameTime = 0; 
+        let dayDuration = 60; 
+        let hemiLight, dirLight;
+        
+        let bossSpawned = false;
+        let timeToBoss = 20; 
+
+        // Game Object Groups
+        const entities = [];
+        const buildings = [];
+        const enemies = [];
+        const projectiles = [];
+        
+        // Player State
+        const player = {
+            sprite: null,
+            pos: new THREE.Vector3(0, 1.5, 0),
+            targetPos: new THREE.Vector3(0, 1.5, 0),
+            speed: 6,
+            hp: 150,
+            maxHp: 150,
+            autoShootTimer: 0,
+            autoShootInterval: 0.8,
+            relicFound: false
+        };
+
+        let boss = null;
+        
+        // Radar Settings
+        const radarCanvas = document.getElementById('radar');
+        const radarCtx = radarCanvas.getContext('2d');
+        const MAP_SIZE = 120; // Grid total area 120x120
+
+        // --- Initialization ---
+        function init() {
+            const container = document.getElementById('game-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xd27d2d);
+            scene.fog = new THREE.FogExp2(0xd27d2d, 0.02);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 12, 15);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+            hemiLight.position.set(0, 20, 0);
+            scene.add(hemiLight);
+
+            dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(-10, 20, -10);
+            scene.add(dirLight);
+
+            const gridHelper = new THREE.GridHelper(MAP_SIZE, 60, 0x555555, 0x333333);
+            scene.add(gridHelper);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('pointerdown', onPointerDown);
+
+            createPlayer();
+            createBuildings();
+            
+            for(let i=0; i<3; i++) spawnMinion(true);
+            
+            animate();
+        }
+
+        // --- Texture and Entity Generation ---
+        function createCardTexture(text, bgColor, hpPercent = 1.0, isBoss = false, isBuilding = false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(28, 28, 200, 200);
+            
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = isBoss ? '#ff0000' : (isBuilding ? '#8b4513' : '#ffffff');
+            ctx.strokeRect(28, 28, 200, 200);
+
+            ctx.fillStyle = '#ffffff';
+            // Adjust font size for longer English words to prevent overflow
+            if (text.length > 8) {
+                ctx.font = isBoss ? 'bold 28px Arial' : 'bold 26px Arial';
+            } else {
+                ctx.font = isBoss ? 'bold 40px Arial' : 'bold 36px Arial';
+            }
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 128, 128);
+
+            if (hpPercent >= 0) {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(40, 40, 176, 20);
+                ctx.fillStyle = hpPercent > 0.5 ? '#00ff00' : (hpPercent > 0.2 ? '#ffff00' : '#ff0000');
+                if (isBuilding) ctx.fillStyle = '#00aaff'; 
+                ctx.fillRect(42, 42, 172 * hpPercent, 16);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter;
+            return texture;
+        }
+
+        function createPlayer() {
+            const mat = new THREE.SpriteMaterial({ 
+                map: createCardTexture('Hunter', '#3366cc', -1), 
+                depthWrite: false 
+            });
+            player.sprite = new THREE.Sprite(mat);
+            player.sprite.scale.set(4, 4, 1);
+            player.sprite.position.copy(player.pos);
+            scene.add(player.sprite);
+        }
+
+        function createBuildings() {
+            const buildingCount = 6;
+            const relicIndex = Math.floor(Math.random() * buildingCount);
+
+            for (let i = 0; i < buildingCount; i++) {
+                const b = {
+                    isBuilding: true,
+                    hp: Math.random() * 30 + 10,
+                    maxHp: 100,
+                    hasRelic: (i === relicIndex),
+                    isRepaired: false,
+                    pos: new THREE.Vector3(
+                        (Math.random() - 0.5) * 100, 
+                        2, 
+                        (Math.random() - 0.5) * 100
+                    )
+                };
+                if (b.pos.length() < 20) b.pos.x += 25;
+
+                const mat = new THREE.SpriteMaterial({ map: getBuildingTexture(b) });
+                b.sprite = new THREE.Sprite(mat);
+                b.sprite.scale.set(5, 5, 1);
+                b.sprite.position.copy(b.pos);
+                b.sprite.userData = { entity: b };
+                
+                scene.add(b.sprite);
+                buildings.push(b);
+                entities.push(b.sprite);
+            }
+        }
+
+        function getBuildingTexture(b) {
+            if (b.isRepaired) {
+                return createCardTexture(b.hasRelic ? '⛪Relic' : '🏠Intact', b.hasRelic ? '#ffd700' : '#55aa55', 1.0, false, true);
+            } else {
+                return createCardTexture('🏚️Ruined', '#8b4513', b.hp / b.maxHp, false, true);
+            }
+        }
+
+        function spawnMinion(isInitial = false, bossSpawnPos = null) {
+            if (!gameActive) return;
+            
+            let spawnX, spawnZ;
+            if (bossSpawnPos) {
+                spawnX = bossSpawnPos.x + (Math.random() - 0.5) * 10;
+                spawnZ = bossSpawnPos.z + (Math.random() - 0.5) * 10;
+            } else {
+                let validPos = false;
+                while(!validPos) {
+                    spawnX = (Math.random() - 0.5) * MAP_SIZE;
+                    spawnZ = (Math.random() - 0.5) * MAP_SIZE;
+                    const distToPlayer = Math.hypot(spawnX - player.pos.x, spawnZ - player.pos.z);
+                    if (distToPlayer > 30) validPos = true;
+                }
+            }
+
+            const minion = {
+                isEnemy: true,
+                isBoss: false,
+                hp: 40,
+                maxHp: 40,
+                speed: 3 + Math.random(),
+                pos: new THREE.Vector3(spawnX, 1.5, spawnZ),
+                attackCooldown: 0
+            };
+            
+            const mat = new THREE.SpriteMaterial({ map: createCardTexture('Minion', '#880000', 1.0) });
+            minion.sprite = new THREE.Sprite(mat);
+            minion.sprite.scale.set(3, 3, 1);
+            minion.sprite.position.copy(minion.pos);
+            minion.sprite.userData = { entity: minion };
+            
+            scene.add(minion.sprite);
+            enemies.push(minion);
+            entities.push(minion.sprite);
+        }
+
+        function triggerBossSpawn() {
+            bossSpawned = true;
+            document.getElementById('boss-warning').style.display = 'block';
+            shakeCamera();
+            setTimeout(() => { document.getElementById('boss-warning').style.display = 'none'; }, 4000);
+            
+            if(player.relicFound){
+                document.getElementById('status-text').innerText = "The Vampire Lord is here! Use the Relic to destroy him!";
+            } else {
+                document.getElementById('status-text').innerText = "The Vampire Lord has arrived! You haven't found the relic yet, repair the houses quickly!";
+                document.getElementById('status-text').style.color = "#ff0000";
+            }
+
+            const spawnZ = player.pos.z > 0 ? -40 : 40; 
+            
+            boss = {
+                isEnemy: true,
+                isBoss: true,
+                hp: 600,
+                maxHp: 600,
+                speed: 2,
+                pos: new THREE.Vector3(player.pos.x, 3.5, spawnZ),
+                attackCooldown: 0,
+                summonCooldown: 5 
+            };
+            const mat = new THREE.SpriteMaterial({ map: createCardTexture('Vampire Lord', '#440000', 1.0, true) });
+            boss.sprite = new THREE.Sprite(mat);
+            boss.sprite.scale.set(7, 7, 1);
+            boss.sprite.position.copy(boss.pos);
+            boss.sprite.userData = { entity: boss };
+            
+            scene.add(boss.sprite);
+            enemies.push(boss);
+            entities.push(boss.sprite);
+        }
+
+        function shakeCamera() {
+            let shakeTime = 20;
+            const originalY = camera.position.y;
+            const originalZ = camera.position.z;
+            
+            const interval = setInterval(() => {
+                if(shakeTime <= 0) {
+                    clearInterval(interval);
+                    return;
+                }
+                camera.position.y = originalY + (Math.random() - 0.5) * 1;
+                camera.position.z = originalZ + (Math.random() - 0.5) * 1;
+                shakeTime--;
+            }, 50);
+        }
+
+        // --- Interaction and Combat Logic ---
+        function onPointerDown(event) {
+            if (!gameActive) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(entities);
+            if (intersects.length > 0) {
+                const target = intersects[0].object.userData.entity;
+                if (target) {
+                    if (target.isEnemy) {
+                        shoot(target.pos);
+                    } else if (target.isBuilding && !target.isRepaired) {
+                        repairBuilding(target);
+                    }
+                    return; 
+                }
+            }
+
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+            const targetPos = new THREE.Vector3();
+            raycaster.ray.intersectPlane(plane, targetPos);
+            
+            if (targetPos) {
+                player.targetPos.set(targetPos.x, 1.5, targetPos.z);
+            }
+        }
+
+        function shoot(targetVec) {
+            const bullet = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xc0c0c0 })
+            );
+            bullet.position.copy(player.sprite.position);
+            const direction = new THREE.Vector3().subVectors(targetVec, bullet.position).normalize();
+            
+            scene.add(bullet);
+            projectiles.push({
+                mesh: bullet,
+                dir: direction,
+                speed: 35,
+                life: 1.5,
+                damage: 25
+            });
+        }
+
+        function repairBuilding(b) {
+            if (b.isRepaired) return;
+            
+            b.hp += 20;
+            showFloatingText(b.pos, "🔧Repair!", "#00aaff");
+
+            if (b.hp >= b.maxHp) {
+                b.hp = b.maxHp;
+                b.isRepaired = true;
+                
+                if (b.hasRelic) {
+                    player.relicFound = true;
+                    document.getElementById('relic-status').style.display = 'block';
+                    
+                    if(bossSpawned){
+                        document.getElementById('status-text').innerText = "Objective: Defeat the Vampire Lord!";
+                        document.getElementById('status-text').style.color = "#ffffff";
+                    } else {
+                        document.getElementById('status-text').innerText = "Relic found! Prepare to battle the Vampire Lord!";
+                    }
+                    showFloatingText(b.pos, "✨Relic Found!", "#ffd700");
+                } else {
+                    showFloatingText(b.pos, "🏠Repaired (No Relic)", "#55aa55");
+                }
+            }
+            b.sprite.material.map = getBuildingTexture(b);
+        }
+
+        function showFloatingText(pos, text, color) {
+            const div = document.createElement('div');
+            div.className = 'floating-text';
+            div.innerText = text;
+            div.style.color = color;
+            document.body.appendChild(div);
+
+            const screenPos = pos.clone();
+            screenPos.y += 3;
+            screenPos.project(camera);
+            
+            const x = (screenPos.x * .5 + .5) * window.innerWidth;
+            const y = (screenPos.y * -.5 + .5) * window.innerHeight;
+            
+            div.style.left = `${x}px`;
+            div.style.top = `${y}px`;
+
+            setTimeout(() => div.remove(), 1000);
+        }
+
+        function takeDamage(amount) {
+            player.hp -= amount;
+            if (player.hp < 0) player.hp = 0;
+            document.getElementById('hp-bar').style.width = `${(player.hp / player.maxHp) * 100}%`;
+            
+            document.getElementById('game-container').style.filter = "sepia(100%) hue-rotate(300deg) saturate(300%)";
+            setTimeout(() => document.getElementById('game-container').style.filter = "none", 100);
+
+            if (player.hp <= 0) {
+                gameOver("The Hunter has fallen... Darkness consumes the town.");
+            }
+        }
+
+        function gameOver(msg) {
+            gameActive = false;
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('end-desc').innerText = msg;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Radar Drawing System ---
+        function drawFlame(ctx, x, y, size, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x, y - size); // Top point
+            ctx.bezierCurveTo(x + size, y, x + size, y + size, x, y + size); // Right half curve to bottom
+            ctx.bezierCurveTo(x - size, y + size, x - size, y, x, y - size); // Left half curve back to top
+            ctx.fill();
+        }
+
+        function updateRadar() {
+            radarCtx.clearRect(0, 0, 150, 150);
+            
+            // Map scaling: 120 grid -> 150 pixels
+            const scale = 150 / MAP_SIZE;
+            const toCanvas = (worldVec) => {
+                // Center (0,0) mapped to (75,75)
+                return {
+                    x: worldVec.x * scale + 75,
+                    y: worldVec.z * scale + 75
+                };
+            };
+
+            // 1. Draw Buildings (small squares)
+            buildings.forEach(b => {
+                const rp = toCanvas(b.pos);
+                // Unrepaired: Dark brown
+                radarCtx.fillStyle = '#4a2e15'; 
+                radarCtx.fillRect(rp.x - 3, rp.y - 3, 6, 6);
+                
+                // Repaired: overlay with bright indicator
+                if (b.isRepaired) {
+                    radarCtx.fillStyle = b.hasRelic ? '#ffd700' : '#55aa55';
+                    radarCtx.fillRect(rp.x - 2, rp.y - 2, 4, 4);
+                }
+            });
+
+            // 2. Draw Demons (blue flames)
+            enemies.forEach(e => {
+                const rp = toCanvas(e.pos);
+                drawFlame(radarCtx, rp.x, rp.y, e.isBoss ? 8 : 4, '#00aaff');
+            });
+
+            // 3. Draw Player (green dot with white border)
+            const pp = toCanvas(player.pos);
+            radarCtx.fillStyle = '#00ff00';
+            radarCtx.beginPath();
+            radarCtx.arc(pp.x, pp.y, 4, 0, Math.PI * 2);
+            radarCtx.fill();
+            radarCtx.strokeStyle = '#ffffff';
+            radarCtx.lineWidth = 1;
+            radarCtx.stroke();
+        }
+
+        // --- Main Loop ---
+        let clock = new THREE.Clock();
+        let minionSpawnTimer = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!gameActive) return;
+
+            const delta = clock.getDelta();
+            
+            updateTime(delta);
+            updatePlayer(delta);
+            updateEnemies(delta);
+            updateProjectiles(delta);
+            updateRadar(); 
+            
+            minionSpawnTimer += delta;
+            if(minionSpawnTimer > 3) {
+                if(enemies.length < (bossSpawned ? 15 : 8)){ 
+                    spawnMinion();
+                }
+                minionSpawnTimer = 0;
+            }
+            
+            camera.position.lerp(
+                new THREE.Vector3(player.sprite.position.x, 12, player.sprite.position.z + 18), 
+                0.1
+            );
+            camera.lookAt(player.sprite.position.x, 0, player.sprite.position.z - 5);
+
+            renderer.render(scene, camera);
+        }
+
+        function updateTime(dt) {
+            gameTime += (dt / dayDuration);
+            if (gameTime > 1) gameTime = 0;
+
+            if(!bossSpawned) {
+                timeToBoss -= dt;
+                if(timeToBoss <= 0) triggerBossSpawn();
+            }
+
+            let bgColor, lightIntensity;
+            let timeStr = "";
+
+            if (gameTime < 0.3) {
+                const lerpTime = gameTime / 0.3;
+                bgColor = new THREE.Color(0xd27d2d).lerp(new THREE.Color(0x1a1a3a), lerpTime);
+                lightIntensity = 0.8 - (lerpTime * 0.5);
+                timeStr = "Evening";
+            } else if (gameTime < 0.7) {
+                const lerpTime = (gameTime - 0.3) / 0.4;
+                bgColor = new THREE.Color(0x1a1a3a).lerp(new THREE.Color(0x050510), lerpTime);
+                lightIntensity = 0.3;
+                timeStr = "Midnight";
+            } else {
+                const lerpTime = (gameTime - 0.7) / 0.3;
+                bgColor = new THREE.Color(0x050510).lerp(new THREE.Color(0xd27d2d), lerpTime);
+                lightIntensity = 0.3 + (lerpTime * 0.5);
+                timeStr = "Pre-dawn";
+            }
+
+            scene.background = bgColor;
+            scene.fog.color = bgColor;
+            dirLight.intensity = lightIntensity;
+            hemiLight.intensity = lightIntensity * 0.8;
+            
+            const hour = Math.floor((gameTime * 24 + 18) % 24);
+            document.getElementById('time-display').innerText = `${hour.toString().padStart(2, '0')}:00 (${timeStr})`;
+        }
+
+        function updatePlayer(dt) {
+            const moveDist = player.pos.distanceTo(player.targetPos);
+            if (moveDist > 0.1) {
+                const dir = new THREE.Vector3().subVectors(player.targetPos, player.pos).normalize();
+                player.pos.add(dir.multiplyScalar(Math.min(player.speed * dt, moveDist)));
+                player.sprite.position.copy(player.pos);
+            }
+
+            player.autoShootTimer += dt;
+            if (player.autoShootTimer >= player.autoShootInterval && enemies.length > 0) {
+                let nearest = null;
+                let minDist = Infinity;
+                for (let e of enemies) {
+                    const d = player.pos.distanceTo(e.pos);
+                    if (d < minDist && d < 40) { 
+                        minDist = d;
+                        nearest = e;
+                    }
+                }
+                if (nearest) {
+                    shoot(nearest.pos);
+                    player.autoShootTimer = 0;
+                }
+            }
+        }
+
+        function updateEnemies(dt) {
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                
+                if (e.isBoss) {
+                    e.summonCooldown -= dt;
+                    if (e.summonCooldown <= 0) {
+                        showFloatingText(e.pos, "🦇Summon Minions!", "#ff0000");
+                        spawnMinion(false, e.pos);
+                        spawnMinion(false, e.pos);
+                        e.summonCooldown = 6; 
+                    }
+                }
+
+                const distToPlayer = e.pos.distanceTo(player.pos);
+                if (distToPlayer > (e.isBoss ? 3 : 2)) {
+                    const dir = new THREE.Vector3().subVectors(player.pos, e.pos).normalize();
+                    e.pos.add(dir.multiplyScalar(e.speed * dt));
+                    e.sprite.position.copy(e.pos);
+                } else {
+                    e.attackCooldown -= dt;
+                    if (e.attackCooldown <= 0) {
+                        takeDamage(e.isBoss ? 30 : 10);
+                        e.attackCooldown = e.isBoss ? 2.0 : 1.5; 
+                        showFloatingText(player.pos, `-${e.isBoss ? 30 : 10}`, "#ff0000");
+                    }
+                }
+            }
+        }
+
+        function updateProjectiles(dt) {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.mesh.position.add(p.dir.clone().multiplyScalar(p.speed * dt));
+                p.life -= dt;
+
+                let hit = false;
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const e = enemies[j];
+                    const hitRadius = e.isBoss ? 4 : 2;
+                    
+                    if (p.mesh.position.distanceTo(e.pos) < hitRadius) {
+                        hit = true;
+                        e.hp -= p.damage;
+                        showFloatingText(e.pos, `-${p.damage}`, "#ffffff");
+                        
+                        e.sprite.material.map = createCardTexture(
+                            e.isBoss ? 'Vampire Lord' : 'Minion', 
+                            e.isBoss ? '#440000' : '#880000', 
+                            e.hp / e.maxHp, 
+                            e.isBoss
+                        );
+
+                        if (e.hp <= 0) {
+                            scene.remove(e.sprite);
+                            const entIdx = entities.indexOf(e.sprite);
+                            if (entIdx > -1) entities.splice(entIdx, 1);
+                            
+                            enemies.splice(j, 1);
+                            
+                            if (e.isBoss) {
+                                if (player.relicFound) {
+                                    gameOver("🎉 Victory! You destroyed the Vampire Lord with the light of the relic!");
+                                    document.getElementById('end-title').innerText = "VICTORY";
+                                    document.getElementById('end-title').style.color = "#ffd700";
+                                } else {
+                                    gameOver("❌ You defeated the Vampire Lord but without the relic, he has resurrected in the darkness... (Retry required)");
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if (hit || p.life <= 0) {
+                    scene.remove(p.mesh);
+                    projectiles.splice(i, 1);
+                }
+            }
+        }
+
+        init();
+
+    </script>
+</body>
+</html>

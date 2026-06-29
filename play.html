@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Paper Demon Hunter: Sunset Relic War - Stage 1</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <div id="hud">
+        <div id="boss-countdown-container">魔王降臨倒數: <span id="countdown-timer">120s</span></div>
+        <div id="status-text">任務目標：在魔王降臨前修復房屋以尋找聖物！</div>
+        <div id="relic-status">✨ 聖物已獲得！等待魔王降臨！</div>
+        
+        <!-- Holy Energy Container -->
+        <div id="angel-energy-container">
+            <div>聖光能量:</div>
+            <div class="bar-container"><div id="energy-bar"></div></div>
+            <button id="summon-btn">👼 召喚聖天使</button>
+        </div>
+
+        <div id="saint-demon-container">
+            <div>聖魔指數:</div>
+            <div class="bar-container"><div id="saint-demon-bar"></div></div>
+            <div id="saint-demon-state">累積中</div>
+        </div>
+
+        <!-- BGM Control -->
+        <button id="music-toggle" style="margin-top: 10px; font-weight: bold; background: rgba(0,0,0,0.6); color: white; border: 1px solid white; cursor: pointer; padding: 5px 10px; border-radius: 4px; pointer-events: auto;">🔊 背景音樂：開啟</button>
+    </div>
+    
+    <!-- Right Panel (Radar & Time Display) -->
+    <div id="right-panel">
+        <div id="radar-container">
+            <canvas id="radar" width="150" height="150"></canvas>
+            <div id="radar-title">惡魔雷達</div>
+        </div>
+        <div id="time-display">18:00 (黃昏)</div>
+    </div>
+
+    <div id="boss-warning">⚠️ 警告：大魔王已降臨 ⚠️</div>
+
+    <!-- Starting Instructions Overlay -->
+    <div id="start-overlay">
+        <h1 style="color: #ffd700; text-shadow: 0 0 10px #ffd700; margin-bottom: 5px;">紙片獵魔</h1>
+        <h2 style="margin-top: 0px; color: #bbb; font-size: 1.2rem;">日落聖物戰 - 第一關</h2>
+
+        <!-- Character & Visual mode setup -->
+        <div id="setup-container">
+            <div class="setup-section">
+                <h3>🧙 選擇獵魔人</h3>
+                <div class="selection-grid">
+                    <div class="select-card active" id="char-priest">
+                        <span class="select-icon">👨‍⚖️</span>
+                        <span class="select-label">驅魔神父</span>
+                    </div>
+                    <div class="select-card" id="char-nun">
+                        <span class="select-icon">👩‍⚕️</span>
+                        <span class="select-label">聖經修女</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="instructions-box">
+            <p><strong>⛪ 核心任務</strong>：在 <strong>120 秒</strong> 內修復地圖上散落的 <strong>10 棟廢墟房屋</strong> 以獲得隱藏的聖物！如果沒有找到聖物就擊殺大魔王，他會在黑暗中復活。</p>
+            <p><strong>🎮 遊戲操作</strong>：
+                <ul>
+                    <li><strong>移動</strong>：點擊 / 觸碰地面。主角會自動滑動繞開大體積房舍與牆壁障礙。</li>
+                    <li><strong>射擊</strong>：點擊 / 觸碰敵人。（自動射擊系統會隨時射擊最近的敵人）。</li>
+                    <li><strong>修復</strong>：點擊 / 觸碰廢墟（顯示為 `🏚️廢墟`）進行修復。</li>
+                </ul>
+            </p>
+            <p><strong>👼 聖天使召喚大招</strong>：修復房屋會增加<strong>聖光能量</strong>（每間屋子 +20%）。集滿 100% 時，點擊 <strong>👼 召喚聖天使</strong> 按鈕可瞬間蒸發所有普通小怪，並對大魔王造成 250 點巨額傷害！</p>
+            <p><strong>⚠️ 魔王詛咒 spell</strong>：魔王會隨機朝你投射特殊詛咒：
+                <ul>
+                    <li>❄️ <strong>減速 (SLOWED!)</strong>：移動速度降為 2.5（持續 5 秒）。</li>
+                    <li>❌ <strong>弱化 (WEAKENED!)</strong>：子彈威力降為 8 且子彈轉為紫色（持續 6 秒）。</li>
+                    <li>🩸 <strong>血之詛咒 (CURSED!)</strong>：每秒受到 8 點持續劇毒流血傷害（持續 5 秒）。</li>
+                </ul>
+            </p>
+            <p><strong>❤️ 生命狀態顯示</strong>：所有角色頭頂上方皆有 3D 浮空前視角血條，隨時可一目了然！</p>
+        </div>
+        <button id="start-btn">開始獵魔任務</button>
+    </div>
+
+    <div id="overlay">
+        <h1 id="end-title">遊戲結束</h1>
+        <p id="end-desc" style="font-size: 20px; margin-bottom: 30px;"></p>
+        <button onclick="location.reload()">再試一次</button>
+    </div>
+
+    <!-- Victory Overlay -->
+    <div id="victory-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 20;">
+        <h1 id="victory-title" style="color: #ffd700; text-shadow: 0 0 15px gold; font-size: 48px; margin-bottom: 20px;">關卡通關</h1>
+        <p id="victory-desc" style="font-size: 22px; margin-bottom: 30px; text-shadow: 1px 1px 3px black;"></p>
+        <button id="advance-btn" style="padding: 15px 30px; font-size: 24px; cursor: pointer; background-color: #ffd700; color: #4a2e15; border: 2px solid white; border-radius: 10px; font-weight: bold; box-shadow: 0 0 15px rgba(255,215,0,0.4); transition: transform 0.2s;">前進下一關</button>
+    </div>
+
+    <!-- Include Three.js via CDN globally first -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Game Scripts (Global namespace loaded sequentially) -->
+    <script src="js/embedded_assets.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/textures.js"></script>
+    <script src="js/scene.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/projectile.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/enemy.js"></script>
+    <script src="js/building.js"></script>
+    <script src="js/radar.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

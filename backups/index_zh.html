@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>紙片獵魔：日落聖物戰 - 第一關</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            touch-action: none;
+        }
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            z-index: 10;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px black;
+        }
+        .bar-container {
+            width: 200px;
+            height: 20px;
+            background-color: rgba(0,0,0,0.5);
+            border: 2px solid #fff;
+            margin-bottom: 5px;
+        }
+        #hp-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #ff3333;
+            transition: width 0.2s;
+        }
+        #status-text {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        #relic-status {
+            color: #ffd700;
+            font-size: 20px;
+            margin-top: 5px;
+            display: none;
+            font-weight: bold;
+        }
+        
+        /* 牛皮紙雷達樣式 */
+        #radar-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 150px;
+            /* 牛皮紙底色與一點噪點質感 */
+            background-color: #d4b581;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E");
+            border: 4px solid #6b4423;
+            border-radius: 8px;
+            padding: 5px;
+            box-shadow: 3px 3px 10px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        #radar {
+            width: 100%;
+            height: 150px;
+            background-color: rgba(255,255,255,0.1);
+            border: 1px dashed #8b5a2b;
+        }
+        #radar-title {
+            text-align: center;
+            color: #4a2e15;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 5px;
+            text-shadow: none;
+        }
+
+        #boss-warning {
+            position: absolute;
+            top: 30%;
+            width: 100%;
+            text-align: center;
+            color: #ff0000;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 2px 2px 10px black;
+            z-index: 15;
+            display: none;
+            pointer-events: none;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        #time-display {
+            position: absolute;
+            top: 210px; /* 移到雷達下方 */
+            right: 10px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 10;
+            text-shadow: 1px 1px 2px black;
+        }
+        #controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+            text-align: center;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 20;
+            display: none;
+        }
+        #overlay h1 { font-size: 48px; margin-bottom: 20px; }
+        #overlay button {
+            padding: 15px 30px;
+            font-size: 24px;
+            cursor: pointer;
+            background-color: #555;
+            color: white;
+            border: 2px solid white;
+            border-radius: 10px;
+        }
+        #overlay button:hover { background-color: #777; }
+        
+        .floating-text {
+            position: absolute;
+            color: white;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            text-shadow: 1px 1px 2px black;
+            z-index: 15;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <div id="hud">
+        <div>獵魔人生命：</div>
+        <div class="bar-container"><div id="hp-bar"></div></div>
+        <div id="status-text">任務：趁魔王還沒出現，快去修復房屋尋找聖物！</div>
+        <div id="relic-status">✨ 已獲得聖物！等待魔王降臨！</div>
+    </div>
+    
+    <!-- 雷達 UI -->
+    <div id="radar-container">
+        <canvas id="radar" width="150" height="150"></canvas>
+        <div id="radar-title">魔物探測儀</div>
+    </div>
+
+    <div id="boss-warning">⚠️ 警告：吸血鬼王已降臨 ⚠️</div>
+    
+    <div id="time-display">18:00 (黃昏)</div>
+    
+    <div id="controls-hint">
+        [點擊地面] 移動 | [狂點敵人] 加速射擊 | [狂點房屋] 快速維修<br>
+        (自動射擊開啟中)
+    </div>
+
+    <div id="overlay">
+        <h1 id="end-title">Game Over</h1>
+        <p id="end-desc" style="font-size: 20px; margin-bottom: 30px;"></p>
+        <button onclick="location.reload()">重新挑戰</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <script>
+        // --- 遊戲全域變數 ---
+        let scene, camera, renderer;
+        let raycaster, mouse;
+        let gameActive = true;
+        
+        // 時間與階段
+        let gameTime = 0; 
+        let dayDuration = 60; 
+        let hemiLight, dirLight;
+        
+        let bossSpawned = false;
+        let timeToBoss = 20; 
+
+        // 遊戲物件群組
+        const entities = [];
+        const buildings = [];
+        const enemies = [];
+        const projectiles = [];
+        
+        // 玩家狀態
+        const player = {
+            sprite: null,
+            pos: new THREE.Vector3(0, 1.5, 0),
+            targetPos: new THREE.Vector3(0, 1.5, 0),
+            speed: 6,
+            hp: 150,
+            maxHp: 150,
+            autoShootTimer: 0,
+            autoShootInterval: 0.8,
+            relicFound: false
+        };
+
+        let boss = null;
+        
+        // 雷達設定
+        const radarCanvas = document.getElementById('radar');
+        const radarCtx = radarCanvas.getContext('2d');
+        const MAP_SIZE = 120; // 網格總範圍 120x120
+
+        // --- 初始化 ---
+        function init() {
+            const container = document.getElementById('game-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xd27d2d);
+            scene.fog = new THREE.FogExp2(0xd27d2d, 0.02);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 12, 15);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+            hemiLight.position.set(0, 20, 0);
+            scene.add(hemiLight);
+
+            dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(-10, 20, -10);
+            scene.add(dirLight);
+
+            const gridHelper = new THREE.GridHelper(MAP_SIZE, 60, 0x555555, 0x333333);
+            scene.add(gridHelper);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            window.addEventListener('resize', onWindowResize);
+            renderer.domElement.addEventListener('pointerdown', onPointerDown);
+
+            createPlayer();
+            createBuildings();
+            
+            for(let i=0; i<3; i++) spawnMinion(true);
+            
+            animate();
+        }
+
+        // --- 材質與物件生成 ---
+        function createCardTexture(text, bgColor, hpPercent = 1.0, isBoss = false, isBuilding = false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(28, 28, 200, 200);
+            
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = isBoss ? '#ff0000' : (isBuilding ? '#8b4513' : '#ffffff');
+            ctx.strokeRect(28, 28, 200, 200);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = isBoss ? 'bold 40px Arial' : 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 128, 128);
+
+            if (hpPercent >= 0) {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(40, 40, 176, 20);
+                ctx.fillStyle = hpPercent > 0.5 ? '#00ff00' : (hpPercent > 0.2 ? '#ffff00' : '#ff0000');
+                if (isBuilding) ctx.fillStyle = '#00aaff'; 
+                ctx.fillRect(42, 42, 172 * hpPercent, 16);
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter;
+            return texture;
+        }
+
+        function createPlayer() {
+            const mat = new THREE.SpriteMaterial({ 
+                map: createCardTexture('主角', '#3366cc', -1), 
+                depthWrite: false 
+            });
+            player.sprite = new THREE.Sprite(mat);
+            player.sprite.scale.set(4, 4, 1);
+            player.sprite.position.copy(player.pos);
+            scene.add(player.sprite);
+        }
+
+        function createBuildings() {
+            const buildingCount = 6;
+            const relicIndex = Math.floor(Math.random() * buildingCount);
+
+            for (let i = 0; i < buildingCount; i++) {
+                const b = {
+                    isBuilding: true,
+                    hp: Math.random() * 30 + 10,
+                    maxHp: 100,
+                    hasRelic: (i === relicIndex),
+                    isRepaired: false,
+                    pos: new THREE.Vector3(
+                        (Math.random() - 0.5) * 100, 
+                        2, 
+                        (Math.random() - 0.5) * 100
+                    )
+                };
+                if (b.pos.length() < 20) b.pos.x += 25;
+
+                const mat = new THREE.SpriteMaterial({ map: getBuildingTexture(b) });
+                b.sprite = new THREE.Sprite(mat);
+                b.sprite.scale.set(5, 5, 1);
+                b.sprite.position.copy(b.pos);
+                b.sprite.userData = { entity: b };
+                
+                scene.add(b.sprite);
+                buildings.push(b);
+                entities.push(b.sprite);
+            }
+        }
+
+        function getBuildingTexture(b) {
+            if (b.isRepaired) {
+                return createCardTexture(b.hasRelic ? '⛪聖物' : '🏠完好', b.hasRelic ? '#ffd700' : '#55aa55', 1.0, false, true);
+            } else {
+                return createCardTexture('🏚️損毀', '#8b4513', b.hp / b.maxHp, false, true);
+            }
+        }
+
+        function spawnMinion(isInitial = false, bossSpawnPos = null) {
+            if (!gameActive) return;
+            
+            let spawnX, spawnZ;
+            if (bossSpawnPos) {
+                spawnX = bossSpawnPos.x + (Math.random() - 0.5) * 10;
+                spawnZ = bossSpawnPos.z + (Math.random() - 0.5) * 10;
+            } else {
+                let validPos = false;
+                while(!validPos) {
+                    spawnX = (Math.random() - 0.5) * MAP_SIZE;
+                    spawnZ = (Math.random() - 0.5) * MAP_SIZE;
+                    const distToPlayer = Math.hypot(spawnX - player.pos.x, spawnZ - player.pos.z);
+                    if (distToPlayer > 30) validPos = true;
+                }
+            }
+
+            const minion = {
+                isEnemy: true,
+                isBoss: false,
+                hp: 40,
+                maxHp: 40,
+                speed: 3 + Math.random(),
+                pos: new THREE.Vector3(spawnX, 1.5, spawnZ),
+                attackCooldown: 0
+            };
+            
+            const mat = new THREE.SpriteMaterial({ map: createCardTexture('小吸血鬼', '#880000', 1.0) });
+            minion.sprite = new THREE.Sprite(mat);
+            minion.sprite.scale.set(3, 3, 1);
+            minion.sprite.position.copy(minion.pos);
+            minion.sprite.userData = { entity: minion };
+            
+            scene.add(minion.sprite);
+            enemies.push(minion);
+            entities.push(minion.sprite);
+        }
+
+        function triggerBossSpawn() {
+            bossSpawned = true;
+            document.getElementById('boss-warning').style.display = 'block';
+            shakeCamera();
+            setTimeout(() => { document.getElementById('boss-warning').style.display = 'none'; }, 4000);
+            
+            if(player.relicFound){
+                document.getElementById('status-text').innerText = "魔王來了！使用聖物力量消滅牠！";
+            } else {
+                document.getElementById('status-text').innerText = "魔王降臨！你還沒找到聖物，快修房子！";
+                document.getElementById('status-text').style.color = "#ff0000";
+            }
+
+            const spawnZ = player.pos.z > 0 ? -40 : 40; 
+            
+            boss = {
+                isEnemy: true,
+                isBoss: true,
+                hp: 600,
+                maxHp: 600,
+                speed: 2,
+                pos: new THREE.Vector3(player.pos.x, 3.5, spawnZ),
+                attackCooldown: 0,
+                summonCooldown: 5 
+            };
+            const mat = new THREE.SpriteMaterial({ map: createCardTexture('吸血鬼王', '#440000', 1.0, true) });
+            boss.sprite = new THREE.Sprite(mat);
+            boss.sprite.scale.set(7, 7, 1);
+            boss.sprite.position.copy(boss.pos);
+            boss.sprite.userData = { entity: boss };
+            
+            scene.add(boss.sprite);
+            enemies.push(boss);
+            entities.push(boss.sprite);
+        }
+
+        function shakeCamera() {
+            let shakeTime = 20;
+            const originalY = camera.position.y;
+            const originalZ = camera.position.z;
+            
+            const interval = setInterval(() => {
+                if(shakeTime <= 0) {
+                    clearInterval(interval);
+                    return;
+                }
+                camera.position.y = originalY + (Math.random() - 0.5) * 1;
+                camera.position.z = originalZ + (Math.random() - 0.5) * 1;
+                shakeTime--;
+            }, 50);
+        }
+
+        // --- 互動與戰鬥邏輯 ---
+        function onPointerDown(event) {
+            if (!gameActive) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(entities);
+            if (intersects.length > 0) {
+                const target = intersects[0].object.userData.entity;
+                if (target) {
+                    if (target.isEnemy) {
+                        shoot(target.pos);
+                    } else if (target.isBuilding && !target.isRepaired) {
+                        repairBuilding(target);
+                    }
+                    return; 
+                }
+            }
+
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+            const targetPos = new THREE.Vector3();
+            raycaster.ray.intersectPlane(plane, targetPos);
+            
+            if (targetPos) {
+                player.targetPos.set(targetPos.x, 1.5, targetPos.z);
+            }
+        }
+
+        function shoot(targetVec) {
+            const bullet = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xc0c0c0 })
+            );
+            bullet.position.copy(player.sprite.position);
+            const direction = new THREE.Vector3().subVectors(targetVec, bullet.position).normalize();
+            
+            scene.add(bullet);
+            projectiles.push({
+                mesh: bullet,
+                dir: direction,
+                speed: 35,
+                life: 1.5,
+                damage: 25
+            });
+        }
+
+        function repairBuilding(b) {
+            if (b.isRepaired) return;
+            
+            b.hp += 20;
+            showFloatingText(b.pos, "🔧修復!", "#00aaff");
+
+            if (b.hp >= b.maxHp) {
+                b.hp = b.maxHp;
+                b.isRepaired = true;
+                
+                if (b.hasRelic) {
+                    player.relicFound = true;
+                    document.getElementById('relic-status').style.display = 'block';
+                    
+                    if(bossSpawned){
+                        document.getElementById('status-text').innerText = "目標：消滅吸血鬼王！";
+                        document.getElementById('status-text').style.color = "#ffffff";
+                    } else {
+                        document.getElementById('status-text').innerText = "已找到聖物！準備迎戰魔王！";
+                    }
+                    showFloatingText(b.pos, "✨找到聖物!", "#ffd700");
+                } else {
+                    showFloatingText(b.pos, "🏠修好(無聖物)", "#55aa55");
+                }
+            }
+            b.sprite.material.map = getBuildingTexture(b);
+        }
+
+        function showFloatingText(pos, text, color) {
+            const div = document.createElement('div');
+            div.className = 'floating-text';
+            div.innerText = text;
+            div.style.color = color;
+            document.body.appendChild(div);
+
+            const screenPos = pos.clone();
+            screenPos.y += 3;
+            screenPos.project(camera);
+            
+            const x = (screenPos.x * .5 + .5) * window.innerWidth;
+            const y = (screenPos.y * -.5 + .5) * window.innerHeight;
+            
+            div.style.left = `${x}px`;
+            div.style.top = `${y}px`;
+
+            setTimeout(() => div.remove(), 1000);
+        }
+
+        function takeDamage(amount) {
+            player.hp -= amount;
+            if (player.hp < 0) player.hp = 0;
+            document.getElementById('hp-bar').style.width = `${(player.hp / player.maxHp) * 100}%`;
+            
+            document.getElementById('game-container').style.filter = "sepia(100%) hue-rotate(300deg) saturate(300%)";
+            setTimeout(() => document.getElementById('game-container').style.filter = "none", 100);
+
+            if (player.hp <= 0) {
+                gameOver("獵魔人倒下了...黑夜吞噬了小鎮。");
+            }
+        }
+
+        function gameOver(msg) {
+            gameActive = false;
+            document.getElementById('overlay').style.display = 'flex';
+            document.getElementById('end-desc').innerText = msg;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- 雷達繪製系統 ---
+        function drawFlame(ctx, x, y, size, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            // 繪製水滴狀/火焰狀
+            ctx.moveTo(x, y - size); // 頂點
+            ctx.bezierCurveTo(x + size, y, x + size, y + size, x, y + size); // 右半弧度到下方
+            ctx.bezierCurveTo(x - size, y + size, x - size, y, x, y - size); // 左半弧度回頂點
+            ctx.fill();
+        }
+
+        function updateRadar() {
+            radarCtx.clearRect(0, 0, 150, 150);
+            
+            // 比例換算：120 網格 -> 150 像素
+            const scale = 150 / MAP_SIZE;
+            const toCanvas = (worldVec) => {
+                // 將中心點 (0,0) 對應到 (75,75)
+                return {
+                    x: worldVec.x * scale + 75,
+                    y: worldVec.z * scale + 75
+                };
+            };
+
+            // 1. 繪製房屋 (小方形)
+            buildings.forEach(b => {
+                const rp = toCanvas(b.pos);
+                // 未修復：深棕色
+                radarCtx.fillStyle = '#4a2e15'; 
+                radarCtx.fillRect(rp.x - 3, rp.y - 3, 6, 6);
+                
+                // 修復後蓋上一層亮色
+                if (b.isRepaired) {
+                    radarCtx.fillStyle = b.hasRelic ? '#ffd700' : '#55aa55';
+                    radarCtx.fillRect(rp.x - 2, rp.y - 2, 4, 4);
+                }
+            });
+
+            // 2. 繪製怪物 (藍色火焰)
+            enemies.forEach(e => {
+                const rp = toCanvas(e.pos);
+                drawFlame(radarCtx, rp.x, rp.y, e.isBoss ? 8 : 4, '#00aaff');
+            });
+
+            // 3. 繪製主角 (綠色圓點帶白邊)
+            const pp = toCanvas(player.pos);
+            radarCtx.fillStyle = '#00ff00';
+            radarCtx.beginPath();
+            radarCtx.arc(pp.x, pp.y, 4, 0, Math.PI * 2);
+            radarCtx.fill();
+            radarCtx.strokeStyle = '#ffffff';
+            radarCtx.lineWidth = 1;
+            radarCtx.stroke();
+        }
+
+        // --- 主迴圈 ---
+        let clock = new THREE.Clock();
+        let minionSpawnTimer = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!gameActive) return;
+
+            const delta = clock.getDelta();
+            
+            updateTime(delta);
+            updatePlayer(delta);
+            updateEnemies(delta);
+            updateProjectiles(delta);
+            updateRadar(); // 呼叫更新雷達
+            
+            minionSpawnTimer += delta;
+            if(minionSpawnTimer > 3) {
+                if(enemies.length < (bossSpawned ? 15 : 8)){ 
+                    spawnMinion();
+                }
+                minionSpawnTimer = 0;
+            }
+            
+            camera.position.lerp(
+                new THREE.Vector3(player.sprite.position.x, 12, player.sprite.position.z + 18), 
+                0.1
+            );
+            camera.lookAt(player.sprite.position.x, 0, player.sprite.position.z - 5);
+
+            renderer.render(scene, camera);
+        }
+
+        function updateTime(dt) {
+            gameTime += (dt / dayDuration);
+            if (gameTime > 1) gameTime = 0;
+
+            if(!bossSpawned) {
+                timeToBoss -= dt;
+                if(timeToBoss <= 0) triggerBossSpawn();
+            }
+
+            let bgColor, lightIntensity;
+            let timeStr = "";
+
+            if (gameTime < 0.3) {
+                const lerpTime = gameTime / 0.3;
+                bgColor = new THREE.Color(0xd27d2d).lerp(new THREE.Color(0x1a1a3a), lerpTime);
+                lightIntensity = 0.8 - (lerpTime * 0.5);
+                timeStr = "傍晚";
+            } else if (gameTime < 0.7) {
+                const lerpTime = (gameTime - 0.3) / 0.4;
+                bgColor = new THREE.Color(0x1a1a3a).lerp(new THREE.Color(0x050510), lerpTime);
+                lightIntensity = 0.3;
+                timeStr = "深夜";
+            } else {
+                const lerpTime = (gameTime - 0.7) / 0.3;
+                bgColor = new THREE.Color(0x050510).lerp(new THREE.Color(0xd27d2d), lerpTime);
+                lightIntensity = 0.3 + (lerpTime * 0.5);
+                timeStr = "黎明前";
+            }
+
+            scene.background = bgColor;
+            scene.fog.color = bgColor;
+            dirLight.intensity = lightIntensity;
+            hemiLight.intensity = lightIntensity * 0.8;
+            
+            const hour = Math.floor((gameTime * 24 + 18) % 24);
+            document.getElementById('time-display').innerText = `${hour.toString().padStart(2, '0')}:00 (${timeStr})`;
+        }
+
+        function updatePlayer(dt) {
+            const moveDist = player.pos.distanceTo(player.targetPos);
+            if (moveDist > 0.1) {
+                const dir = new THREE.Vector3().subVectors(player.targetPos, player.pos).normalize();
+                player.pos.add(dir.multiplyScalar(Math.min(player.speed * dt, moveDist)));
+                player.sprite.position.copy(player.pos);
+            }
+
+            player.autoShootTimer += dt;
+            if (player.autoShootTimer >= player.autoShootInterval && enemies.length > 0) {
+                let nearest = null;
+                let minDist = Infinity;
+                for (let e of enemies) {
+                    const d = player.pos.distanceTo(e.pos);
+                    if (d < minDist && d < 40) { 
+                        minDist = d;
+                        nearest = e;
+                    }
+                }
+                if (nearest) {
+                    shoot(nearest.pos);
+                    player.autoShootTimer = 0;
+                }
+            }
+        }
+
+        function updateEnemies(dt) {
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                
+                if (e.isBoss) {
+                    e.summonCooldown -= dt;
+                    if (e.summonCooldown <= 0) {
+                        showFloatingText(e.pos, "🦇召喚眷屬!", "#ff0000");
+                        spawnMinion(false, e.pos);
+                        spawnMinion(false, e.pos);
+                        e.summonCooldown = 6; 
+                    }
+                }
+
+                const distToPlayer = e.pos.distanceTo(player.pos);
+                if (distToPlayer > (e.isBoss ? 3 : 2)) {
+                    const dir = new THREE.Vector3().subVectors(player.pos, e.pos).normalize();
+                    e.pos.add(dir.multiplyScalar(e.speed * dt));
+                    e.sprite.position.copy(e.pos);
+                } else {
+                    e.attackCooldown -= dt;
+                    if (e.attackCooldown <= 0) {
+                        takeDamage(e.isBoss ? 30 : 10);
+                        e.attackCooldown = e.isBoss ? 2.0 : 1.5; 
+                        showFloatingText(player.pos, `-${e.isBoss ? 30 : 10}`, "#ff0000");
+                    }
+                }
+            }
+        }
+
+        function updateProjectiles(dt) {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.mesh.position.add(p.dir.clone().multiplyScalar(p.speed * dt));
+                p.life -= dt;
+
+                let hit = false;
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const e = enemies[j];
+                    const hitRadius = e.isBoss ? 4 : 2;
+                    
+                    if (p.mesh.position.distanceTo(e.pos) < hitRadius) {
+                        hit = true;
+                        e.hp -= p.damage;
+                        showFloatingText(e.pos, `-${p.damage}`, "#ffffff");
+                        
+                        e.sprite.material.map = createCardTexture(
+                            e.isBoss ? '吸血鬼王' : '小吸血鬼', 
+                            e.isBoss ? '#440000' : '#880000', 
+                            e.hp / e.maxHp, 
+                            e.isBoss
+                        );
+
+                        if (e.hp <= 0) {
+                            scene.remove(e.sprite);
+                            const entIdx = entities.indexOf(e.sprite);
+                            if (entIdx > -1) entities.splice(entIdx, 1);
+                            
+                            enemies.splice(j, 1);
+                            
+                            if (e.isBoss) {
+                                if (player.relicFound) {
+                                    gameOver("🎉 勝利！你用聖物光芒消滅了吸血鬼王！");
+                                    document.getElementById('end-title').innerText = "VICTORY";
+                                    document.getElementById('end-title').style.color = "#ffd700";
+                                } else {
+                                    gameOver("❌ 你擊殺了魔王，但沒找到聖物，魔王在黑暗中重生了... (需重玩)");
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                if (hit || p.life <= 0) {
+                    scene.remove(p.mesh);
+                    projectiles.splice(i, 1);
+                }
+            }
+        }
+
+        init();
+
+    </script>
+</body>
+</html>

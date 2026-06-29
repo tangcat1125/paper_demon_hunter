@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>紙片獵魔</title>
+    <meta http-equiv="refresh" content="0; url=play.html?character=priest">
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at top, #5b1d12 0%, #120709 58%, #050308 100%);
+            color: #f7d774;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        .launch-card {
+            padding: 28px 32px;
+            border: 1px solid rgba(247, 215, 116, 0.35);
+            border-radius: 18px;
+            background: rgba(10, 6, 10, 0.78);
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4);
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: 2rem;
+        }
+
+        p {
+            margin: 0;
+            color: #f3e7b4;
+        }
+
+        a {
+            color: #ffd700;
+        }
+    </style>
+</head>
+<body>
+    <div class="launch-card">
+        <h1>紙片獵魔</h1>
+        <p>正在進入遊戲...</p>
+        <p><a href="play.html?character=priest">如果沒有自動跳轉，點這裡開始</a></p>
+    </div>
+    <script>
+        window.location.replace('play.html?character=priest');
+    </script>
+</body>
+</html>
