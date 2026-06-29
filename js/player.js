@@ -2,6 +2,59 @@
 
 window.Game = window.Game || {};
 
+function clampPlayerValue(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function addObstacleAvoidance(avoidance, playerPos, desiredDir, obstacleCenter, nearestPoint, obstacleRadius) {
+    const toPlayer = new THREE.Vector3().subVectors(playerPos, nearestPoint);
+    const distance = toPlayer.length();
+    const influenceRadius = obstacleRadius + 3.8;
+    if (distance <= 0.001 || distance >= influenceRadius) return;
+
+    const away = toPlayer.normalize();
+    const pushStrength = (influenceRadius - distance) / influenceRadius;
+    const movingIntoObstacle = Math.max(0, desiredDir.dot(away.clone().multiplyScalar(-1)));
+
+    avoidance.addScaledVector(away, pushStrength * (1.1 + movingIntoObstacle * 1.5));
+
+    // Add a small sideways nudge so the player naturally flows around corners.
+    const tangent = new THREE.Vector3(-away.z, 0, away.x);
+    const toTarget = new THREE.Vector3().subVectors(window.Game.state.player.targetPos, obstacleCenter);
+    const tangentSign = tangent.dot(toTarget) >= 0 ? 1 : -1;
+    avoidance.addScaledVector(tangent, pushStrength * movingIntoObstacle * 0.65 * tangentSign);
+}
+
+window.Game.getPlayerAvoidanceVector = function(playerPos, desiredDir) {
+    const state = window.Game.state;
+    const avoidance = new THREE.Vector3();
+
+    for (const obs of state.obstacles || []) {
+        const nearestPoint = new THREE.Vector3(
+            clampPlayerValue(playerPos.x, obs.xMin, obs.xMax),
+            playerPos.y,
+            clampPlayerValue(playerPos.z, obs.zMin, obs.zMax)
+        );
+        const obstacleCenter = new THREE.Vector3(obs.x, playerPos.y, obs.z);
+        const obstacleRadius = Math.max(obs.width, obs.depth) * 0.5;
+        addObstacleAvoidance(avoidance, playerPos, desiredDir, obstacleCenter, nearestPoint, obstacleRadius);
+    }
+
+    for (const building of state.buildings || []) {
+        const center = new THREE.Vector3(building.pos.x, playerPos.y, building.pos.z);
+        const toPlayer = new THREE.Vector3().subVectors(playerPos, center);
+        if (toPlayer.lengthSq() <= 0.001) continue;
+        const nearestPoint = center.clone().add(toPlayer.normalize().multiplyScalar(6.0));
+        addObstacleAvoidance(avoidance, playerPos, desiredDir, center, nearestPoint, 6.0);
+    }
+
+    if (avoidance.lengthSq() > 0.0001) {
+        avoidance.normalize();
+    }
+
+    return avoidance;
+};
+
 window.Game.createPlayer = function() {
     const scene = window.Game.scene;
     const state = window.Game.state;
@@ -101,6 +154,10 @@ window.Game.updatePlayer = function(dt) {
         }
 
         const dir = new THREE.Vector3().subVectors(p.targetPos, p.pos).normalize();
+        const avoidance = window.Game.getPlayerAvoidanceVector(p.pos, dir);
+        const moveDir = avoidance.lengthSq() > 0.0001
+            ? dir.clone().add(avoidance.multiplyScalar(1.35)).normalize()
+            : dir;
 
         // Flip based on on-screen horizontal movement, not world X.
         const camera = window.Game.camera;
@@ -109,16 +166,16 @@ window.Game.updatePlayer = function(dt) {
             cameraRight.y = 0;
             if (cameraRight.lengthSq() > 0.0001) {
                 cameraRight.normalize();
-                const screenHorizontal = dir.dot(cameraRight);
+                const screenHorizontal = moveDir.dot(cameraRight);
                 if (screenHorizontal < -0.05) {
                     p.facingDir = -1;
                 } else if (screenHorizontal > 0.05) {
                     p.facingDir = 1;
                 }
             }
-        } else if (dir.x < -0.05) {
+        } else if (moveDir.x < -0.05) {
             p.facingDir = -1;
-        } else if (dir.x > 0.05) {
+        } else if (moveDir.x > 0.05) {
             p.facingDir = 1;
         }
         if (state.useGraphicsMode) {
@@ -127,7 +184,7 @@ window.Game.updatePlayer = function(dt) {
         p.sprite.scale.x = 4;
 
         const stepDist = Math.min(currentSpeed * dt, moveDist);
-        const nextPos = p.pos.clone().add(dir.clone().multiplyScalar(stepDist));
+        const nextPos = p.pos.clone().add(moveDir.clone().multiplyScalar(stepDist));
 
         // Bounding check (Radius 1.2 around player center)
         if (!window.Game.checkCollision(nextPos, 1.2)) {
@@ -137,11 +194,14 @@ window.Game.updatePlayer = function(dt) {
             const stepX = new THREE.Vector3(nextPos.x, p.pos.y, p.pos.z);
             // Try sliding along Z axis only
             const stepZ = new THREE.Vector3(p.pos.x, p.pos.y, nextPos.z);
+            const steerStep = p.pos.clone().add(avoidance.clone().multiplyScalar(stepDist));
 
             if (!window.Game.checkCollision(stepX, 1.2)) {
                 p.pos.copy(stepX);
             } else if (!window.Game.checkCollision(stepZ, 1.2)) {
                 p.pos.copy(stepZ);
+            } else if (avoidance.lengthSq() > 0.0001 && !window.Game.checkCollision(steerStep, 1.2)) {
+                p.pos.copy(steerStep);
             } else {
                 // Completely blocked, cancel target movement
                 p.targetPos.copy(p.pos);
