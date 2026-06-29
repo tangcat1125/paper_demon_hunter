@@ -3,52 +3,340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>紙片獵魔</title>
-    <meta http-equiv="refresh" content="0; url=play.html?character=priest">
+    <title>&#32025;&#29255;&#29501;&#39764;</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             min-height: 100vh;
+            padding: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at top, #5b1d12 0%, #120709 58%, #050308 100%);
-            color: #f7d774;
+            background:
+                radial-gradient(circle at top, rgba(164, 58, 34, 0.45) 0%, rgba(12, 5, 8, 0.92) 56%, #040205 100%),
+                url('background/background.png') center center / cover no-repeat;
+            color: #fff6d6;
             font-family: "Segoe UI", sans-serif;
         }
 
-        .launch-card {
-            padding: 28px 32px;
-            border: 1px solid rgba(247, 215, 116, 0.35);
-            border-radius: 18px;
-            background: rgba(10, 6, 10, 0.78);
-            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4);
-            text-align: center;
+        .shell {
+            width: min(1120px, 100%);
+            padding: 28px;
+            border: 1px solid rgba(255, 215, 120, 0.22);
+            border-radius: 28px;
+            background: rgba(13, 8, 11, 0.74);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(12px);
         }
 
-        h1 {
+        .hero {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            margin: 0 0 10px;
+            color: #ffd54d;
+            font-size: clamp(2.2rem, 5vw, 4.2rem);
+            letter-spacing: 0.08em;
+        }
+
+        .hero p {
+            margin: 0;
+            color: #efe1b0;
+            font-size: 1.05rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 22px;
+        }
+
+        .card {
+            position: relative;
+            min-height: 420px;
+            padding: 22px 22px 18px;
+            border-radius: 22px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            background: linear-gradient(180deg, rgba(42, 26, 22, 0.84) 0%, rgba(10, 7, 12, 0.9) 100%);
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 215, 77, 0.45);
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.32);
+        }
+
+        .card.selected {
+            border-color: #ffd54d;
+            box-shadow: 0 0 0 1px rgba(255, 213, 77, 0.45), 0 0 30px rgba(255, 213, 77, 0.18);
+        }
+
+        .portrait {
+            height: 260px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 18px;
+        }
+
+        .portrait img {
+            max-width: 78%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 18px 20px rgba(0, 0, 0, 0.55));
+        }
+
+        .name {
+            margin: 0 0 6px;
+            font-size: 2rem;
+            color: #fff;
+        }
+
+        .card.selected .name {
+            color: #ffd54d;
+        }
+
+        .tag {
+            display: inline-block;
+            margin-bottom: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #f3e5b2;
+            font-size: 0.92rem;
+        }
+
+        .desc {
+            margin: 0;
+            color: #d9cba5;
+            line-height: 1.65;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        #launch-btn {
+            min-width: 280px;
+            padding: 15px 28px;
+            border: none;
+            border-radius: 999px;
+            background: linear-gradient(180deg, #ffd95f 0%, #f2b80e 100%);
+            color: #2a1705;
+            font-size: 1.2rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 14px 30px rgba(242, 184, 14, 0.3);
+        }
+
+        #launch-btn:hover {
+            filter: brightness(1.04);
+        }
+
+        .about-panel {
+            margin-top: 26px;
+            padding: 28px;
+            border-radius: 24px;
+            background: #ffffff;
+            color: #2a1d16;
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+        }
+
+        .about-panel h2 {
             margin: 0 0 10px;
             font-size: 2rem;
+            color: #8f2b16;
         }
 
-        p {
+        .lead {
+            margin: 0 0 14px;
+            font-size: 1.08rem;
+            line-height: 1.8;
+            color: #4a372e;
+        }
+
+        .teacher-highlight {
+            margin: 0 0 18px;
+            padding: 14px 16px;
+            border-left: 6px solid #f2b80e;
+            border-radius: 14px;
+            background: #fff5d8;
+            color: #5a3c0b;
+            font-weight: 700;
+            line-height: 1.7;
+        }
+
+        .credit-title {
+            margin: 18px 0 12px;
+            font-size: 1.15rem;
+            color: #8f2b16;
+            font-weight: 800;
+        }
+
+        .credit-list {
             margin: 0;
-            color: #f3e7b4;
+            padding-left: 22px;
+            columns: 2;
+            column-gap: 32px;
+            line-height: 1.8;
+            color: #3d3028;
         }
 
-        a {
-            color: #ffd700;
+        .credit-list li {
+            break-inside: avoid;
+            margin-bottom: 2px;
+        }
+
+        @media (max-width: 820px) {
+            body {
+                padding: 14px;
+            }
+
+            .shell {
+                padding: 18px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                min-height: 0;
+            }
+
+            .portrait {
+                height: 220px;
+            }
+
+            #launch-btn {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .about-panel {
+                padding: 20px;
+            }
+
+            .credit-list {
+                columns: 1;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="launch-card">
-        <h1>紙片獵魔</h1>
-        <p>正在進入遊戲...</p>
-        <p><a href="play.html?character=priest">如果沒有自動跳轉，點這裡開始</a></p>
-    </div>
+    <main class="shell">
+        <section class="hero">
+            <h1>&#32025;&#29255;&#29501;&#39764;</h1>
+            <p>&#20808;&#36984;&#20320;&#30340;&#29501;&#39764;&#32773;&#65292;&#20877;&#36914;&#20837;&#36889;&#27454;&#28858;&#35506;&#31243;&#38283;&#30332;&#32780;&#35477;&#29983;&#30340;&#29501;&#39764;&#36938;&#25138;&#12290;</p>
+        </section>
+
+        <section class="grid">
+            <article class="card" id="card-nun" data-character="nun">
+                <div class="portrait">
+                    <img src="assets/nun/nun_idle.png" alt="&#20462;&#22899;">
+                </div>
+                <h2 class="name">&#32854;&#32147;&#20462;&#22899;</h2>
+                <div class="tag">&#37325;&#26087;&#29190;&#30332;&#22411;</div>
+                <p class="desc">&#21934;&#30332;&#20663;&#23475;&#39640;&#65292;&#36969;&#21512;&#31337;&#31337;&#28165;&#24618;&#33287;&#22739; Boss &#34880;&#32218;&#12290;&#22823;&#32085;&#26159;&#22823;&#36852;&#26059;&#26087;&#65292;&#36817;&#36523;&#21312;&#22495;&#22739;&#21046;&#29305;&#21029;&#24375;&#12290;</p>
+            </article>
+
+            <article class="card selected" id="card-priest" data-character="priest">
+                <div class="portrait">
+                    <img src="assets/priest/priest_idle.png" alt="&#31070;&#29238;">
+                </div>
+                <h2 class="name">&#39545;&#39764;&#31070;&#29238;</h2>
+                <div class="tag">&#39640;&#36895;&#23556;&#25802;&#22411;</div>
+                <p class="desc">&#23556;&#36895;&#24555;&#12289;&#25163;&#24863;&#20416;&#33853;&#65292;&#36969;&#21512;&#21916;&#27489;&#38728;&#27963;&#36208;&#20301;&#33287;&#36899;&#32396;&#22739;&#21046;&#30340;&#29609;&#27861;&#12290;&#22823;&#32085;&#26159;&#20840;&#26041;&#20301;&#23556;&#25802;&#12290;</p>
+            </article>
+        </section>
+
+        <section class="actions">
+            <button id="launch-btn" type="button">&#38283;&#22987;&#29501;&#39764;</button>
+        </section>
+
+        <section class="about-panel" aria-labelledby="about-title">
+            <h2 id="about-title">&#24863;&#35613;&#22823;&#23478;&#25903;&#25345;&#35987;&#32769;&#24107;&#38283;&#30332;&#35506;&#31243;&#36938;&#25138;</h2>
+            <p class="lead">
+                &#36889;&#20491;&#39318;&#38913;&#35498;&#26126;&#21312;&#65292;&#29305;&#21029;&#29563;&#32102;&#19968;&#36335;&#25903;&#25345;&#35987;&#32769;&#24107;&#38283;&#30332;&#35506;&#31243;&#36938;&#25138;&#30340;&#27599;&#19968;&#20301;&#22837;&#20276;&#12290;&#22240;&#28858;&#26377;&#22823;&#23478;&#19968;&#36215;&#25237;&#20837;&#12289;&#19968;&#36215;&#28204;&#35430;&#12289;&#19968;&#36215;&#25552;&#20986;&#24819;&#27861;&#65292;&#36889;&#27454;&#20316;&#21697;&#25165;&#33021;&#19968;&#27493;&#19968;&#27493;&#38263;&#25104;&#29694;&#22312;&#30340;&#27169;&#27171;&#12290;
+            </p>
+            <p class="teacher-highlight">
+                &#29305;&#21029;&#24863;&#35613; <strong>&#23567;&#21674;&#32769;&#24107;</strong> &#33287;&#25152;&#26377;&#25903;&#25345;&#32773;&#30340;&#38506;&#20276;&#33287;&#40723;&#21237;&#65292;&#35731;&#36889;&#38272;&#35506;&#31243;&#20013;&#30340;&#36938;&#25138;&#38283;&#30332;&#19981;&#21482;&#26159;&#20316;&#21697;&#35069;&#20316;&#65292;&#26356;&#25104;&#28858;&#22823;&#23478;&#20849;&#21516;&#23436;&#25104;&#30340;&#21109;&#20316;&#27511;&#31243;&#12290;
+            </p>
+
+            <div class="credit-title">28 &#20301;&#20849;&#21516;&#38283;&#30332;&#32773;&#24863;&#35613;&#21517;&#21934;</div>
+            <ol class="credit-list" id="credit-list">
+                <li>Bobo Chen</li>
+                <li>Chen Allen</li>
+                <li>Chungwei Hsieh</li>
+                <li>Ian Chen</li>
+                <li>Jan-yin Kuo</li>
+                <li>Lili Lin</li>
+                <li>Louis Ho</li>
+                <li>Ryan Peng</li>
+                <li>Tsai Kurt</li>
+            </ol>
+        </section>
+    </main>
+
     <script>
-        window.location.replace('play.html?character=priest');
+        let selectedCharacter = 'priest';
+
+        const nunCard = document.getElementById('card-nun');
+        const priestCard = document.getElementById('card-priest');
+        const launchBtn = document.getElementById('launch-btn');
+
+        function setCharacter(character) {
+            selectedCharacter = character;
+            nunCard.classList.toggle('selected', character === 'nun');
+            priestCard.classList.toggle('selected', character === 'priest');
+        }
+
+        nunCard.addEventListener('click', () => setCharacter('nun'));
+        priestCard.addEventListener('click', () => setCharacter('priest'));
+
+        launchBtn.addEventListener('click', () => {
+            window.location.href = `play.html?character=${selectedCharacter}`;
+        });
+
+        const additionalCredits = [
+            '\u4f55\u9298\u9d3b',
+            '\u5085\u6b3d\u6770',
+            '\u5289\u6587\u5c1a',
+            '\u5b54\u7965\u5b87',
+            '\u674e\u4ec1\u8000',
+            '\u674e\u82f1\u5982',
+            '\u6797\u4ee5\u6cd3',
+            '\u6797\u6176\u6cd3',
+            '\u6881\u5927\u9d6c',
+            '\u6f58\u6167\u541b',
+            '\u8521\u660c\u6a3a',
+            '\u8a31\u58eb\u5f65',
+            '\u9112\u6566\u601c',
+            '\u9673\u5b5d\u9b41',
+            '\u9673\u5c0f\u8449',
+            '\u9673\u6176\u6e90',
+            '\u9673\u6c11\u5cf0',
+            '\u9673\u9023\u57df',
+            '\u9ec3\u5b89\u5fd7'
+        ];
+
+        const creditList = document.getElementById('credit-list');
+        additionalCredits.forEach((name) => {
+            const item = document.createElement('li');
+            item.textContent = name;
+            creditList.appendChild(item);
+        });
     </script>
 </body>
 </html>

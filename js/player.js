@@ -71,9 +71,10 @@ window.Game.updatePlayer = function(dt) {
     }
 
     // Calculate player speed based on enemies defeated with a slower, more controlled progression
-    const baseSpeed = 6;
-    const speedStages = Math.floor((state.enemiesDefeated || 0) / 8);
-    const speedMult = Math.min(1.35, 1 + speedStages * 0.08);
+    const difficulty = window.Game.getDifficultyProfile();
+    const baseSpeed = difficulty.playerBaseSpeed;
+    const speedStages = Math.floor((state.enemiesDefeated || 0) / difficulty.playerSpeedUpgradeEvery);
+    const speedMult = Math.min(difficulty.playerSpeedCap, 1 + speedStages * difficulty.playerSpeedUpgradeStep);
     p.speed = baseSpeed * speedMult;
 
     // Set speed based on slow debuff

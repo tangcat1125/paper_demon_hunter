@@ -5,6 +5,7 @@ window.Game = window.Game || {};
 window.Game.spawnMinion = function(isInitial = false, bossSpawnPos = null) {
     const scene = window.Game.scene;
     const state = window.Game.state;
+    const difficulty = window.Game.getDifficultyProfile();
     if (!state.gameActive) return;
 
     let spawnX, spawnZ;
@@ -33,12 +34,12 @@ window.Game.spawnMinion = function(isInitial = false, bossSpawnPos = null) {
     const minion = {
         isEnemy: true,
         isBoss: false,
-        hp: stats.hp,
-        maxHp: stats.hp,
-        speed: stats.speed,
+        hp: Math.round(stats.hp * difficulty.minionHpScale),
+        maxHp: Math.round(stats.hp * difficulty.minionHpScale),
+        speed: stats.speed * difficulty.minionSpeedScale,
         pos: new THREE.Vector3(spawnX, 1.5, spawnZ),
         attackCooldown: stats.attackCooldown,
-        specialAttackCooldown: stats.specialAttackCooldown,
+        specialAttackCooldown: stats.specialAttackCooldown * difficulty.minionSpecialScale,
         hpBarSprite: null,
         minionType: minionType,
         strafeDir: Math.random() > 0.5 ? 1 : -1
@@ -72,6 +73,7 @@ window.Game.spawnMinion = function(isInitial = false, bossSpawnPos = null) {
 window.Game.spawnMidBoss = function() {
     const scene = window.Game.scene;
     const state = window.Game.state;
+    const difficulty = window.Game.getDifficultyProfile();
     state.midBossSpawned = true;
 
     window.Game.shakeCamera();
@@ -92,12 +94,12 @@ window.Game.spawnMidBoss = function() {
         isEnemy: true,
         isBoss: true,
         isMidBoss: true,
-        hp: 250,
-        maxHp: 250,
-        speed: 3.2,
+        hp: Math.round(250 * difficulty.midBossHpScale),
+        maxHp: Math.round(250 * difficulty.midBossHpScale),
+        speed: 3.2 * difficulty.midBossSpeedScale,
         pos: new THREE.Vector3(state.player.pos.x + 5, 2.5, spawnZ),
         attackCooldown: 0,
-        specialAttackCooldown: 4.0,
+        specialAttackCooldown: 4.0 * difficulty.minionSpecialScale,
         hpBarSprite: null
     };
 
@@ -129,6 +131,7 @@ window.Game.spawnMidBoss = function() {
 window.Game.triggerBossSpawn = function() {
     const scene = window.Game.scene;
     const state = window.Game.state;
+    const difficulty = window.Game.getDifficultyProfile();
     state.bossSpawned = true;
 
     const warningEl = document.getElementById('boss-warning');
@@ -162,13 +165,13 @@ window.Game.triggerBossSpawn = function() {
         isEnemy: true,
         isBoss: true,
         isMidBoss: false,
-        hp: 600,
-        maxHp: 600,
-        speed: 2,
+        hp: Math.round(600 * difficulty.bossHpScale),
+        maxHp: Math.round(600 * difficulty.bossHpScale),
+        speed: 2 * difficulty.bossSpeedScale,
         pos: new THREE.Vector3(state.player.pos.x, 3.5, spawnZ),
         attackCooldown: 0,
-        summonCooldown: 4.5,
-        specialAttackCooldown: 6.0,
+        summonCooldown: 4.5 * difficulty.minionSpecialScale,
+        specialAttackCooldown: 6.0 * difficulty.minionSpecialScale,
         hpBarSprite: null
     };
 
@@ -214,6 +217,7 @@ function findNearestPlayerProjectile(state, pos) {
 
 window.Game.updateEnemies = function(dt) {
     const state = window.Game.state;
+    const difficulty = window.Game.getDifficultyProfile();
     for (let i = state.enemies.length - 1; i >= 0; i--) {
         const e = state.enemies[i];
 
@@ -223,7 +227,7 @@ window.Game.updateEnemies = function(dt) {
                 if (e.specialAttackCooldown <= 0) {
                     state.player.slowTimer = 5.0;
                     window.Game.showFloatingText(state.player.pos, '緩速!', '#00ffff');
-                    e.specialAttackCooldown = 8.0;
+                    e.specialAttackCooldown = 8.0 * difficulty.minionSpecialScale;
                 }
             } else {
                 e.summonCooldown -= dt;
@@ -231,7 +235,7 @@ window.Game.updateEnemies = function(dt) {
                     window.Game.showFloatingText(e.pos, '魔王召喚小怪！', '#ff0000');
                     window.Game.spawnMinion(false, e.pos);
                     window.Game.spawnMinion(false, e.pos);
-                    e.summonCooldown = 7;
+                    e.summonCooldown = 7 * difficulty.minionSpecialScale;
                 }
 
                 e.specialAttackCooldown -= dt;
@@ -243,7 +247,7 @@ window.Game.updateEnemies = function(dt) {
                         state.player.curseTimer = 5.0;
                         window.Game.showFloatingText(state.player.pos, '詛咒!', '#ff3333');
                     }
-                    e.specialAttackCooldown = 9.0;
+                    e.specialAttackCooldown = 9.0 * difficulty.minionSpecialScale;
                 }
             }
         } else {
@@ -259,12 +263,12 @@ window.Game.updateEnemies = function(dt) {
                         window.Game.shootFrom('priest', e.pos.clone(), state.player.pos.clone(), {
                             friendly: false,
                             projectileType: 'bone',
-                            damage: 7,
+                            damage: Math.max(4, Math.round(7 * difficulty.minionDamageScale)),
                             speed: 11,
                             life: 4.0,
                             scale: 1.1
                         });
-                        e.attackCooldown = 2.4;
+                        e.attackCooldown = 2.8 * difficulty.minionSpecialScale;
                     }
                 }
             } else if (e.minionType === 2) {
@@ -279,27 +283,30 @@ window.Game.updateEnemies = function(dt) {
                 e.pos.add(moveDir.multiplyScalar(e.speed * dt));
                 e.attackCooldown -= dt;
                 if (distToPlayer <= 2.1 && e.attackCooldown <= 0) {
-                    window.Game.takeDamage(9);
-                    window.Game.showFloatingText(state.player.pos, '-9', '#ff0000');
-                    e.attackCooldown = 1.1;
+                    const damage = Math.max(5, Math.round(9 * difficulty.minionDamageScale));
+                    window.Game.takeDamage(damage);
+                    window.Game.showFloatingText(state.player.pos, `-${damage}`, '#ff0000');
+                    e.attackCooldown = 1.35 * difficulty.minionSpecialScale;
                 }
             } else if (e.minionType === 3) {
                 e.specialAttackCooldown -= dt;
                 if (e.specialAttackCooldown <= 0) {
                     window.Game.showFloatingText(e.pos, '吸血鬼召喚骷髏!', '#ff66aa');
-                    for (let s = 0; s < 3; s++) {
+                    const summonCount = difficulty.cycleTier === 1 && state.stage <= 2 ? 2 : 3;
+                    for (let s = 0; s < summonCount; s++) {
                         window.Game.spawnMinion(false, e.pos);
                     }
-                    e.specialAttackCooldown = 6.5;
+                    e.specialAttackCooldown = 6.5 * difficulty.minionSpecialScale;
                 }
                 if (distToPlayer > 3.2) {
                     e.pos.add(dirToPlayer.multiplyScalar(e.speed * dt));
                 }
                 e.attackCooldown -= dt;
                 if (distToPlayer <= 2.4 && e.attackCooldown <= 0) {
-                    window.Game.takeDamage(8);
-                    window.Game.showFloatingText(state.player.pos, '-8', '#ff4444');
-                    e.attackCooldown = 1.5;
+                    const damage = Math.max(5, Math.round(8 * difficulty.minionDamageScale));
+                    window.Game.takeDamage(damage);
+                    window.Game.showFloatingText(state.player.pos, `-${damage}`, '#ff4444');
+                    e.attackCooldown = 1.8 * difficulty.minionSpecialScale;
                 }
             }
 
@@ -315,9 +322,11 @@ window.Game.updateEnemies = function(dt) {
             } else {
                 e.attackCooldown -= dt;
                 if (e.attackCooldown <= 0) {
-                    const damage = e.isMidBoss ? 15 : 30;
+                    const damageBase = e.isMidBoss ? 15 : 30;
+                    const damageScale = e.isMidBoss ? difficulty.midBossDamageScale : difficulty.bossDamageScale;
+                    const damage = Math.max(e.isMidBoss ? 8 : 14, Math.round(damageBase * damageScale));
                     window.Game.takeDamage(damage);
-                    e.attackCooldown = e.isMidBoss ? 1.5 : 2.0;
+                    e.attackCooldown = e.isMidBoss ? (1.8 * difficulty.minionSpecialScale) : (2.3 * difficulty.minionSpecialScale);
                     window.Game.showFloatingText(state.player.pos, `-${damage}`, '#ff0000');
                 }
             }

@@ -14,6 +14,7 @@ window.Game.state = {
     selectedCharacter: 'priest', // 'priest' or 'nun'
     audioEnabled: true,          // BGM status
     stage: 1,                    // Current level (1, 2, or 3)
+    cycleTier: 1,                // 1 = first cycle, 2+ = higher cycle difficulty
     enemiesDefeated: 0,          // Track number of enemies defeated
     cameraAngle: 0,              // Track camera rotation angle
     textures: {},                // Loaded sprites container

@@ -48,8 +48,12 @@ window.Game.init = function() {
 
     const state = window.Game.state;
 
+    state.cycleTier = window.Game.getCycleTier();
+    const difficulty = window.Game.getDifficultyProfile();
+
     // Reset initial timer from config
-    state.timeToBoss = window.Game.INITIAL_BOSS_TIMER;
+    state.timeToMidBoss = difficulty.midBossTimer;
+    state.timeToBoss = difficulty.bossTimer;
 
     // Setup scene, renderer, lights, and obstacles
     window.Game.initScene(container);
@@ -766,9 +770,14 @@ function animate() {
     window.Game.updateHud(); // Keep HUD updated
     
     // Minions spawn rate scales with player upgrade level (enemiesDefeated)
+    const difficulty = window.Game.getDifficultyProfile();
     const upgradeLevel = Math.floor((state.enemiesDefeated || 0) / 3);
-    const spawnInterval = Math.max(0.8, 3.0 - upgradeLevel * 0.45);
-    const maxMinions = (state.bossSpawned ? 15 : 8) + upgradeLevel * 2;
+    const spawnInterval = Math.max(
+        difficulty.minionSpawnIntervalMin,
+        difficulty.minionSpawnIntervalBase - upgradeLevel * difficulty.minionSpawnIntervalDecay
+    );
+    const maxMinions = (state.bossSpawned ? difficulty.maxMinionsBossBase : difficulty.maxMinionsBase) +
+        upgradeLevel * difficulty.maxMinionsUpgradeStep;
 
     minionSpawnTimer += delta;
     if (minionSpawnTimer > spawnInterval) {
@@ -894,6 +903,8 @@ window.Game.stageCleared = function() {
             }
         } else {
             // Final victory!
+            window.Game.markFirstCycleCleared && window.Game.markFirstCycleCleared();
+            state.cycleTier = Math.max(state.cycleTier || 1, 2);
             victoryDesc.innerHTML = `🎉 <strong>終極勝利！</strong> 🎉<br>您已成功淨化所有三個關卡，拯救世界免於亡靈入侵的厄運！<br>願神聖之光永遠指引著您的前路。`;
             if (advanceBtn) {
                 advanceBtn.innerText = "重新開始遊戲";
@@ -947,8 +958,9 @@ window.Game.advanceToNextStage = function() {
     window.Game.removeUltimateSprite && window.Game.removeUltimateSprite();
 
     // 4. Reset timers
-    state.timeToMidBoss = 80;
-    state.timeToBoss = 120;
+    const difficulty = window.Game.getDifficultyProfile();
+    state.timeToMidBoss = difficulty.midBossTimer;
+    state.timeToBoss = difficulty.bossTimer;
     state.midBossSpawned = false;
     state.bossSpawned = false;
     state.holyEnergy = 0;
