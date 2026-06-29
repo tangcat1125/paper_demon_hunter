@@ -9,20 +9,20 @@ function clampPlayerValue(value, min, max) {
 function addObstacleAvoidance(avoidance, playerPos, desiredDir, obstacleCenter, nearestPoint, obstacleRadius) {
     const toPlayer = new THREE.Vector3().subVectors(playerPos, nearestPoint);
     const distance = toPlayer.length();
-    const influenceRadius = obstacleRadius + 3.8;
+    const influenceRadius = obstacleRadius + 1.15;
     if (distance <= 0.001 || distance >= influenceRadius) return;
 
     const away = toPlayer.normalize();
     const pushStrength = (influenceRadius - distance) / influenceRadius;
     const movingIntoObstacle = Math.max(0, desiredDir.dot(away.clone().multiplyScalar(-1)));
 
-    avoidance.addScaledVector(away, pushStrength * (1.1 + movingIntoObstacle * 1.5));
+    avoidance.addScaledVector(away, pushStrength * (0.34 + movingIntoObstacle * 0.78));
 
-    // Add a small sideways nudge so the player naturally flows around corners.
+    // Keep a light sideways nudge only when nearly touching the obstacle.
     const tangent = new THREE.Vector3(-away.z, 0, away.x);
     const toTarget = new THREE.Vector3().subVectors(window.Game.state.player.targetPos, obstacleCenter);
     const tangentSign = tangent.dot(toTarget) >= 0 ? 1 : -1;
-    avoidance.addScaledVector(tangent, pushStrength * movingIntoObstacle * 0.65 * tangentSign);
+    avoidance.addScaledVector(tangent, pushStrength * (0.08 + movingIntoObstacle * 0.22) * tangentSign);
 }
 
 window.Game.getPlayerAvoidanceVector = function(playerPos, desiredDir) {
@@ -156,7 +156,7 @@ window.Game.updatePlayer = function(dt) {
         const dir = new THREE.Vector3().subVectors(p.targetPos, p.pos).normalize();
         const avoidance = window.Game.getPlayerAvoidanceVector(p.pos, dir);
         const moveDir = avoidance.lengthSq() > 0.0001
-            ? dir.clone().add(avoidance.multiplyScalar(1.35)).normalize()
+            ? dir.clone().add(avoidance.multiplyScalar(0.42)).normalize()
             : dir;
 
         // Flip based on on-screen horizontal movement, not world X.
