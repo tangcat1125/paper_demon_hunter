@@ -69,6 +69,13 @@ window.Game.updatePlayer = function(dt) {
         // Deal 8 HP continuous damage per second
         window.Game.takeDamage(8 * dt);
     }
+    if (p.tapComboTimer > 0) {
+        p.tapComboTimer = Math.max(0, p.tapComboTimer - dt);
+        if (p.tapComboTimer === 0) {
+            p.tapComboCount = 0;
+            p.tapAttackMultiplier = 1;
+        }
+    }
 
     // Calculate player speed based on enemies defeated with a slower, more controlled progression
     const difficulty = window.Game.getDifficultyProfile();

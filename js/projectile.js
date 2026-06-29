@@ -138,7 +138,9 @@ window.Game.shootFrom = function(character, originPos, targetVec, options = {}) 
 
     const isWeakened = !options.ignoreWeaken && state.player.weakenTimer > 0;
     const baseDamage = options.damage || (character === 'nun' ? 36 : 24);
-    const dmg = options.damage ? options.damage : (isWeakened ? Math.max(8, Math.round(baseDamage * 0.35)) : baseDamage);
+    const clickBoost = options.clickBoostMultiplier || 1;
+    const effectiveBaseDamage = options.damage ? baseDamage : Math.round(baseDamage * clickBoost);
+    const dmg = options.damage ? effectiveBaseDamage : (isWeakened ? Math.max(8, Math.round(effectiveBaseDamage * 0.35)) : effectiveBaseDamage);
     const speed = options.speed || 35;
     const life = options.life || 1.5;
     const scale = options.scale || (character === 'nun' ? 2.4 : 1.8);
@@ -184,7 +186,9 @@ window.Game.shootFrom = function(character, originPos, targetVec, options = {}) 
 window.Game.shoot = function(targetVec) {
     const state = window.Game.state;
     const originPos = state.player.sprite ? state.player.sprite.position.clone() : state.player.pos.clone();
-    window.Game.shootFrom(state.selectedCharacter, originPos, targetVec);
+    window.Game.shootFrom(state.selectedCharacter, originPos, targetVec, {
+        clickBoostMultiplier: state.player.tapAttackMultiplier || 1
+    });
 };
 
 window.Game.updateProjectiles = function(dt) {

@@ -8,6 +8,10 @@ let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
 let isDraggingCamera = false;
 let previousMouseX = 0;
+let primaryPointerId = null;
+let primaryPointerDown = null;
+let primaryPointerDragging = false;
+const primaryDragThreshold = 10;
 
 // Setup HTML5 Audio objects
 let bgmAudio = new Audio();
@@ -69,6 +73,14 @@ window.Game.init = function() {
             isDraggingCamera = true;
             previousMouseX = e.clientX;
             e.preventDefault();
+            return;
+        }
+
+        if (e.button === 0 && e.target === window.Game.renderer.domElement) {
+            primaryPointerId = e.pointerId;
+            primaryPointerDown = { x: e.clientX, y: e.clientY };
+            previousMouseX = e.clientX;
+            primaryPointerDragging = false;
         }
     });
 
@@ -76,17 +88,39 @@ window.Game.init = function() {
         if (isDraggingCamera) {
             const deltaX = e.clientX - previousMouseX;
             state.cameraAngle = (state.cameraAngle || 0) - deltaX * 0.008;
+            state.cameraManualTimer = 6.0;
             previousMouseX = e.clientX;
+            return;
+        }
+
+        if (primaryPointerId === e.pointerId && primaryPointerDown) {
+            const movedX = e.clientX - primaryPointerDown.x;
+            const movedY = e.clientY - primaryPointerDown.y;
+            if (primaryPointerDragging || Math.hypot(movedX, movedY) >= primaryDragThreshold) {
+                primaryPointerDragging = true;
+                const deltaX = e.clientX - previousMouseX;
+                state.cameraAngle = (state.cameraAngle || 0) - deltaX * 0.008;
+                state.cameraManualTimer = 6.0;
+                previousMouseX = e.clientX;
+            }
         }
     });
 
     window.addEventListener('pointerup', (e) => {
         if (e.button === 1 || e.button === 2) {
             isDraggingCamera = false;
+            return;
+        }
+
+        if (primaryPointerId === e.pointerId) {
+            if (!primaryPointerDragging && e.target === window.Game.renderer.domElement) {
+                onPointerTap(e);
+            }
+            primaryPointerId = null;
+            primaryPointerDown = null;
+            primaryPointerDragging = false;
         }
     });
-
-    window.Game.renderer.domElement.addEventListener('pointerdown', onPointerDown);
 
     // Attach Holy Angel Summon click handler
     const summonBtn = document.getElementById('summon-btn');
@@ -473,6 +507,7 @@ window.Game.spawnSupportAlly = function() {
     const scene = window.Game.scene;
     const state = window.Game.state;
     const p = state.player;
+    const difficulty = window.Game.getDifficultyProfile();
     if (!state.gameActive || !p || p.holyDemonSupportActive) return;
 
     const supportCharacter = state.selectedCharacter === 'nun' ? 'priest' : 'nun';
@@ -495,7 +530,7 @@ window.Game.spawnSupportAlly = function() {
     p.holyDemonSupportActive = true;
     p.holyDemonSupportDuration = 20.0;
     p.holyDemonSupportShotTimer = 0;
-    p.holyDemonSupportCooldown = 120.0;
+    p.holyDemonSupportCooldown = difficulty.supportCooldown;
 
     window.Game.showFloatingText(p.pos, supportCharacter === 'nun' ? '修女支援降臨！' : '神父支援降臨！', '#ffdd55');
 };
@@ -504,12 +539,13 @@ window.Game.activateUltimate = function() {
     const scene = window.Game.scene;
     const state = window.Game.state;
     const p = state.player;
+    const difficulty = window.Game.getDifficultyProfile();
     if (!state.gameActive || !p || p.holyDemonUltimateActive || p.holyDemonUltimateCooldown > 0) return;
 
     p.holyDemonUltimateActive = true;
     p.holyDemonUltimateDuration = 10.0;
     p.holyDemonUltimatePulseTimer = 0;
-    p.holyDemonUltimateCooldown = 180.0;
+    p.holyDemonUltimateCooldown = difficulty.ultimateCooldown;
 
     if (state.selectedCharacter === 'nun') {
         const texture = state.useGraphicsMode ? window.Game.getProjectileTexture('nun') : null;
@@ -717,10 +753,75 @@ window.Game.updateCombatSystems = function(dt) {
     window.Game.updatePlayerEnergyBar();
 };
 
-function onPointerDown(event) {
+function measureClearDistance(origin, dir, maxDistance = 28, stepSize = 2) {
+    const probe = new THREE.Vector3();
+    for (let dist = stepSize; dist <= maxDistance; dist += stepSize) {
+        probe.copy(origin).addScaledVector(dir, dist);
+        probe.y = 1.5;
+        if (window.Game.checkCollision(probe, 1.6)) {
+            return dist - stepSize;
+        }
+    }
+    return maxDistance;
+}
+
+function scoreCameraAngle(angle, playerPos) {
+    const cameraDir = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
+    const forwardDir = cameraDir.clone().multiplyScalar(-1);
+    const cameraSideClear = measureClearDistance(playerPos, cameraDir, 24, 2);
+    const forwardClear = measureClearDistance(playerPos, forwardDir, 30, 2);
+    return forwardClear * 1.4 + cameraSideClear * 0.8;
+}
+
+function normalizeAngleDelta(delta) {
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+    return delta;
+}
+
+function updateAutoCameraAngle(dt) {
+    const state = window.Game.state;
+    const p = state.player;
+    if (!p || !p.sprite) return;
+
+    if (state.cameraManualTimer > 0) {
+        state.cameraManualTimer = Math.max(0, state.cameraManualTimer - dt);
+        return;
+    }
+
+    const playerPos = p.pos || p.sprite.position;
+    const currentAngle = state.cameraAngle || 0;
+    let bestAngle = currentAngle;
+    let bestScore = scoreCameraAngle(currentAngle, playerPos);
+
+    const sampleCount = 16;
+    for (let i = 0; i < sampleCount; i++) {
+        const angle = (Math.PI * 2 * i) / sampleCount;
+        const score = scoreCameraAngle(angle, playerPos);
+        if (score > bestScore + 0.5) {
+            bestScore = score;
+            bestAngle = angle;
+        }
+    }
+
+    const delta = normalizeAngleDelta(bestAngle - currentAngle);
+    state.cameraAngle = currentAngle + delta * Math.min(1, dt * 1.8);
+}
+
+function onPointerTap(event) {
     const state = window.Game.state;
     if (!state.gameActive) return;
-    if (event.button === 1 || event.button === 2) return;
+
+    const now = performance.now();
+    const elapsedSinceTap = now - (state.player.lastTapAt || 0);
+    if (elapsedSinceTap <= 380) {
+        state.player.tapComboCount = Math.min(12, (state.player.tapComboCount || 0) + 1);
+    } else {
+        state.player.tapComboCount = 1;
+    }
+    state.player.lastTapAt = now;
+    state.player.tapComboTimer = 1.2;
+    state.player.tapAttackMultiplier = Math.min(2.6, 1 + state.player.tapComboCount * 0.14);
 
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -730,15 +831,9 @@ function onPointerDown(event) {
     if (intersects.length > 0) {
         const target = intersects[0].object.userData.entity;
         if (target) {
-            if (target.isEnemy) {
-                window.Game.shoot(target.pos);
-                state.player.shootAnimTimer = 0.35; // Trigger shooting action animation
-                state.player.animFrame = 0;
-                state.player.animTimer = 0;
-            } else if (target.isBuilding && !target.isRepaired) {
+            if (target.isBuilding && !target.isRepaired) {
                 window.Game.repairBuilding(target);
             }
-            return; 
         }
     }
 
@@ -762,6 +857,7 @@ function animate() {
     const delta = clock.getDelta();
     
     updateTime(delta);
+    updateAutoCameraAngle(delta);
     window.Game.updatePlayer(delta);
     window.Game.updateEnemies(delta);
     window.Game.updateProjectiles(delta);
@@ -789,20 +885,25 @@ function animate() {
     
     const camera = window.Game.camera;
     if (state.player && state.player.sprite && camera) {
+        const viewport = window.Game.getViewportTuning ? window.Game.getViewportTuning() : {
+            cameraDistance: 18,
+            cameraHeight: 12,
+            lookAhead: 5
+        };
         const angle = state.cameraAngle || 0;
-        const offsetX = Math.sin(angle) * 18;
-        const offsetZ = Math.cos(angle) * 18;
+        const offsetX = Math.sin(angle) * viewport.cameraDistance;
+        const offsetZ = Math.cos(angle) * viewport.cameraDistance;
         
         const targetCamPos = new THREE.Vector3(
             state.player.sprite.position.x + offsetX,
-            12,
+            viewport.cameraHeight,
             state.player.sprite.position.z + offsetZ
         );
         
         camera.position.lerp(targetCamPos, 0.08); // slightly faster lerp for responsive camera drag rotation
         
-        const lookX = state.player.sprite.position.x - Math.sin(angle) * 5;
-        const lookZ = state.player.sprite.position.z - Math.cos(angle) * 5;
+        const lookX = state.player.sprite.position.x - Math.sin(angle) * viewport.lookAhead;
+        const lookZ = state.player.sprite.position.z - Math.cos(angle) * viewport.lookAhead;
         camera.lookAt(lookX, 0, lookZ);
     }
 

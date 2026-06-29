@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>&#32025;&#29255;&#29501;&#39764;</title>
+    <title>&#32025;&#29255;&#29557;&#39764;&#65281;</title>
     <style>
         * {
             box-sizing: border-box;
@@ -20,7 +20,7 @@
                 radial-gradient(circle at top, rgba(164, 58, 34, 0.45) 0%, rgba(12, 5, 8, 0.92) 56%, #040205 100%),
                 url('background/background.png') center center / cover no-repeat;
             color: #fff6d6;
-            font-family: "Segoe UI", sans-serif;
+            font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Heiti TC", sans-serif;
         }
 
         .shell {
@@ -177,6 +177,39 @@
             line-height: 1.7;
         }
 
+        .subscribe-panel {
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            gap: 18px;
+            align-items: center;
+            margin: 0 0 18px;
+            padding: 18px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #fff8eb 0%, #fff2cf 100%);
+            border: 1px solid #f2d48b;
+        }
+
+        .subscribe-qr {
+            width: 100%;
+            max-width: 160px;
+            display: block;
+            margin: 0 auto;
+            border-radius: 16px;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .subscribe-copy h3 {
+            margin: 0 0 8px;
+            font-size: 1.4rem;
+            color: #8f2b16;
+        }
+
+        .subscribe-copy p {
+            margin: 0;
+            color: #5a4437;
+            line-height: 1.7;
+        }
+
         .credit-title {
             margin: 18px 0 12px;
             font-size: 1.15rem;
@@ -228,6 +261,11 @@
                 padding: 20px;
             }
 
+            .subscribe-panel {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
             .credit-list {
                 columns: 1;
             }
@@ -237,8 +275,8 @@
 <body>
     <main class="shell">
         <section class="hero">
-            <h1>&#32025;&#29255;&#29501;&#39764;</h1>
-            <p>&#20808;&#36984;&#20320;&#30340;&#29501;&#39764;&#32773;&#65292;&#20877;&#36914;&#20837;&#36889;&#27454;&#28858;&#35506;&#31243;&#38283;&#30332;&#32780;&#35477;&#29983;&#30340;&#29501;&#39764;&#36938;&#25138;&#12290;</p>
+            <h1>&#32025;&#29255;&#29557;&#39764;&#65281;</h1>
+            <p>&#20808;&#36984;&#20320;&#30340;&#29557;&#39764;&#32773;&#65292;&#20877;&#36914;&#20837;&#36889;&#27454;&#28858;&#35506;&#31243;&#38283;&#30332;&#32780;&#35477;&#29983;&#30340;&#29557;&#39764;&#36938;&#25138;&#12290;</p>
         </section>
 
         <section class="grid">
@@ -247,34 +285,37 @@
                     <img src="assets/nun/nun_idle.png" alt="&#20462;&#22899;">
                 </div>
                 <h2 class="name">&#32854;&#32147;&#20462;&#22899;</h2>
-                <div class="tag">&#37325;&#26087;&#29190;&#30332;&#22411;</div>
-                <p class="desc">&#21934;&#30332;&#20663;&#23475;&#39640;&#65292;&#36969;&#21512;&#31337;&#31337;&#28165;&#24618;&#33287;&#22739; Boss &#34880;&#32218;&#12290;&#22823;&#32085;&#26159;&#22823;&#36852;&#26059;&#26087;&#65292;&#36817;&#36523;&#21312;&#22495;&#22739;&#21046;&#29305;&#21029;&#24375;&#12290;</p>
+                <div class="tag">&#37325;&#26023;&#29190;&#30332;&#22411;&#65288;&#26023;&#65289;</div>
+                <p class="desc">&#21934;&#30332;&#20663;&#23475;&#39640;&#65292;&#36969;&#21512;&#31337;&#31337;&#28165;&#24618;&#33287;&#22739; Boss &#34880;&#32218;&#12290;&#22823;&#32085;&#26159;&#22823;&#36852;&#26059;&#26023;&#65292;&#36817;&#36523;&#21312;&#22495;&#22739;&#21046;&#29305;&#21029;&#24375;&#12290;</p>
             </article>
 
             <article class="card selected" id="card-priest" data-character="priest">
                 <div class="portrait">
                     <img src="assets/priest/priest_idle.png" alt="&#31070;&#29238;">
                 </div>
-                <h2 class="name">&#39545;&#39764;&#31070;&#29238;</h2>
+                <h2 class="name">&#39493;&#39764;&#31070;&#29238;</h2>
                 <div class="tag">&#39640;&#36895;&#23556;&#25802;&#22411;</div>
                 <p class="desc">&#23556;&#36895;&#24555;&#12289;&#25163;&#24863;&#20416;&#33853;&#65292;&#36969;&#21512;&#21916;&#27489;&#38728;&#27963;&#36208;&#20301;&#33287;&#36899;&#32396;&#22739;&#21046;&#30340;&#29609;&#27861;&#12290;&#22823;&#32085;&#26159;&#20840;&#26041;&#20301;&#23556;&#25802;&#12290;</p>
             </article>
         </section>
 
         <section class="actions">
-            <button id="launch-btn" type="button">&#38283;&#22987;&#29501;&#39764;</button>
+            <button id="launch-btn" type="button">&#38283;&#22987;&#29557;&#39764;</button>
         </section>
 
         <section class="about-panel" aria-labelledby="about-title">
-            <h2 id="about-title">&#24863;&#35613;&#22823;&#23478;&#25903;&#25345;&#35987;&#32769;&#24107;&#38283;&#30332;&#35506;&#31243;&#36938;&#25138;</h2>
-            <p class="lead">
-                &#36889;&#20491;&#39318;&#38913;&#35498;&#26126;&#21312;&#65292;&#29305;&#21029;&#29563;&#32102;&#19968;&#36335;&#25903;&#25345;&#35987;&#32769;&#24107;&#38283;&#30332;&#35506;&#31243;&#36938;&#25138;&#30340;&#27599;&#19968;&#20301;&#22837;&#20276;&#12290;&#22240;&#28858;&#26377;&#22823;&#23478;&#19968;&#36215;&#25237;&#20837;&#12289;&#19968;&#36215;&#28204;&#35430;&#12289;&#19968;&#36215;&#25552;&#20986;&#24819;&#27861;&#65292;&#36889;&#27454;&#20316;&#21697;&#25165;&#33021;&#19968;&#27493;&#19968;&#27493;&#38263;&#25104;&#29694;&#22312;&#30340;&#27169;&#27171;&#12290;
-            </p>
-            <p class="teacher-highlight">
-                &#29305;&#21029;&#24863;&#35613; <strong>&#23567;&#21674;&#32769;&#24107;</strong> &#33287;&#25152;&#26377;&#25903;&#25345;&#32773;&#30340;&#38506;&#20276;&#33287;&#40723;&#21237;&#65292;&#35731;&#36889;&#38272;&#35506;&#31243;&#20013;&#30340;&#36938;&#25138;&#38283;&#30332;&#19981;&#21482;&#26159;&#20316;&#21697;&#35069;&#20316;&#65292;&#26356;&#25104;&#28858;&#22823;&#23478;&#20849;&#21516;&#23436;&#25104;&#30340;&#21109;&#20316;&#27511;&#31243;&#12290;
-            </p>
+            <h2 id="about-title"></h2>
+            <p class="lead" id="about-lead"></p>
+            <p class="teacher-highlight" id="teacher-highlight"></p>
+            <div class="subscribe-panel">
+                <img class="subscribe-qr" src="assets/thanks/subscribe_qr.png" alt="訂閱 QR Code">
+                <div class="subscribe-copy">
+                    <h3 id="subscribe-title"></h3>
+                    <p id="subscribe-copy"></p>
+                </div>
+            </div>
 
-            <div class="credit-title">28 &#20301;&#20849;&#21516;&#38283;&#30332;&#32773;&#24863;&#35613;&#21517;&#21934;</div>
+            <div class="credit-title" id="credit-title"></div>
             <ol class="credit-list" id="credit-list">
                 <li>Bobo Chen</li>
                 <li>Chen Allen</li>
@@ -295,6 +336,12 @@
         const nunCard = document.getElementById('card-nun');
         const priestCard = document.getElementById('card-priest');
         const launchBtn = document.getElementById('launch-btn');
+        const aboutTitle = document.getElementById('about-title');
+        const aboutLead = document.getElementById('about-lead');
+        const teacherHighlight = document.getElementById('teacher-highlight');
+        const subscribeTitle = document.getElementById('subscribe-title');
+        const subscribeCopy = document.getElementById('subscribe-copy');
+        const creditTitle = document.getElementById('credit-title');
 
         function setCharacter(character) {
             selectedCharacter = character;
@@ -308,6 +355,13 @@
         launchBtn.addEventListener('click', () => {
             window.location.href = `play.html?character=${selectedCharacter}`;
         });
+
+        aboutTitle.textContent = '\u611f\u8b1d\u5927\u5bb6\u652f\u6301\u8c93\u8001\u5e2b\u958b\u767c\u8ab2\u7a0b\u904a\u6232';
+        aboutLead.textContent = '\u9019\u500b\u9996\u9801\u8aaa\u660e\u5340\uff0c\u7279\u5225\u737b\u7d66\u4e00\u8def\u652f\u6301\u8c93\u8001\u5e2b\u958b\u767c\u8ab2\u7a0b\u904a\u6232\u7684\u6bcf\u4e00\u4f4d\u5925\u4f34\u3002\u56e0\u70ba\u6709\u5927\u5bb6\u4e00\u8d77\u6295\u5165\u3001\u4e00\u8d77\u6e2c\u8a66\u3001\u4e00\u8d77\u63d0\u51fa\u60f3\u6cd5\uff0c\u9019\u6b3e\u4f5c\u54c1\u624d\u80fd\u4e00\u6b65\u4e00\u6b65\u9577\u6210\u73fe\u5728\u7684\u6a21\u6a23\u3002';
+        teacherHighlight.innerHTML = '\u7279\u5225\u611f\u8b1d <strong>\u5c0f\u54aa\u8001\u5e2b</strong> \u8207\u6240\u6709\u652f\u6301\u8005\u7684\u966a\u4f34\u8207\u9f13\u52f5\uff0c\u8b93\u9019\u9580\u8ab2\u7a0b\u4e2d\u7684\u904a\u6232\u958b\u767c\u4e0d\u53ea\u662f\u4f5c\u54c1\u88fd\u4f5c\uff0c\u66f4\u6210\u70ba\u5927\u5bb6\u5171\u540c\u5b8c\u6210\u7684\u5275\u4f5c\u6b77\u7a0b\u3002';
+        subscribeTitle.textContent = '\u6b61\u8fce\u8a02\u95b1\uff0c\u514d\u8cbb\u91cb\u51fa';
+        subscribeCopy.textContent = '\u6383\u63cf QR Code \u5c31\u80fd\u76f4\u63a5\u95dc\u6ce8\uff0c\u4e00\u8d77\u652f\u6301\u8ab2\u7a0b\u904a\u6232\u8207\u5f8c\u7e8c\u5167\u5bb9\u66f4\u65b0\u3002';
+        creditTitle.textContent = '28 \u4f4d\u5171\u540c\u958b\u767c\u8005\u611f\u8b1d\u540d\u55ae';
 
         const additionalCredits = [
             '\u4f55\u9298\u9d3b',

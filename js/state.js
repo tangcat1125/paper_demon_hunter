@@ -17,6 +17,7 @@ window.Game.state = {
     cycleTier: 1,                // 1 = first cycle, 2+ = higher cycle difficulty
     enemiesDefeated: 0,          // Track number of enemies defeated
     cameraAngle: 0,              // Track camera rotation angle
+    cameraManualTimer: 0,        // Delay before auto camera retakes control
     textures: {},                // Loaded sprites container
 
     entities: [],     // WebGL entities list for raycaster intersection checks
@@ -52,6 +53,10 @@ window.Game.state = {
         holyDemonSupportShotTimer: 0,
         holyDemonUltimatePulseTimer: 0,
         relicFound: false,
+        tapAttackMultiplier: 1,
+        tapComboTimer: 0,
+        tapComboCount: 0,
+        lastTapAt: 0,
         
         // Debuff timers in seconds
         slowTimer: 0,

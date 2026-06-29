@@ -8,13 +8,34 @@ window.Game.renderer = null;
 window.Game.hemiLight = null;
 window.Game.dirLight = null;
 
+window.Game.getViewportTuning = function() {
+    const isPortrait = window.innerHeight > window.innerWidth;
+    if (isPortrait) {
+        return {
+            isPortrait: true,
+            cameraDistance: 25,
+            cameraHeight: 16,
+            lookAhead: 7,
+            fov: 72
+        };
+    }
+    return {
+        isPortrait: false,
+        cameraDistance: 18,
+        cameraHeight: 12,
+        lookAhead: 5,
+        fov: 60
+    };
+};
+
 window.Game.initScene = function(container) {
     window.Game.scene = new THREE.Scene();
     window.Game.scene.background = new THREE.Color(0xd27d2d);
     window.Game.scene.fog = new THREE.FogExp2(0xd27d2d, 0.02);
 
-    window.Game.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    window.Game.camera.position.set(0, 12, 15);
+    const viewport = window.Game.getViewportTuning();
+    window.Game.camera = new THREE.PerspectiveCamera(viewport.fov, window.innerWidth / window.innerHeight, 0.1, 1000);
+    window.Game.camera.position.set(0, viewport.cameraHeight, viewport.cameraDistance);
     window.Game.camera.lookAt(0, 0, 0);
 
     window.Game.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -241,7 +262,9 @@ window.Game.handleResize = function() {
     const camera = window.Game.camera;
     const renderer = window.Game.renderer;
     if (camera && renderer) {
+        const viewport = window.Game.getViewportTuning();
         camera.aspect = window.innerWidth / window.innerHeight;
+        camera.fov = viewport.fov;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
