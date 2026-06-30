@@ -8,6 +8,11 @@ window.Game.renderer = null;
 window.Game.hemiLight = null;
 window.Game.dirLight = null;
 
+window.Game.getRendererPixelRatio = function() {
+    const baseRatio = window.devicePixelRatio || 1;
+    return Math.min(baseRatio, window.Game.isMobileGraphicsDevice && window.Game.isMobileGraphicsDevice() ? 1.5 : 2);
+};
+
 window.Game.getViewportTuning = function() {
     const isPortrait = window.innerHeight > window.innerWidth;
     if (isPortrait) {
@@ -38,7 +43,8 @@ window.Game.initScene = function(container) {
     window.Game.camera.position.set(0, viewport.cameraHeight, viewport.cameraDistance);
     window.Game.camera.lookAt(0, 0, 0);
 
-    window.Game.renderer = new THREE.WebGLRenderer({ antialias: true });
+    window.Game.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    window.Game.renderer.setPixelRatio(window.Game.getRendererPixelRatio());
     window.Game.renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(window.Game.renderer.domElement);
 
@@ -266,6 +272,7 @@ window.Game.handleResize = function() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.fov = viewport.fov;
         camera.updateProjectionMatrix();
+        renderer.setPixelRatio(window.Game.getRendererPixelRatio());
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 };

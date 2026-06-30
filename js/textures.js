@@ -89,6 +89,63 @@ window.Game.createMirroredTexture = function(texture) {
     return mirrored;
 };
 
+window.Game.isMobileGraphicsDevice = function() {
+    return window.matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+};
+
+window.Game.shouldChromaKeyTexture = function(key) {
+    return /^(priest_|nun_|minion_|mid_boss_|boss_final_|angel_)/.test(key);
+};
+
+window.Game.prepareLoadedTexture = function(key, texture) {
+    if (!texture || !texture.image) return texture;
+
+    const shouldChromaKey = window.Game.shouldChromaKeyTexture(key);
+    const isMobile = window.Game.isMobileGraphicsDevice();
+    const shouldDownscale = isMobile && /^(priest_|nun_)/.test(key);
+    const sourceImage = texture.image;
+    const maxSize = (isMobile && window.innerHeight > window.innerWidth) ? 960 : 1024;
+    const longestEdge = Math.max(sourceImage.width || 0, sourceImage.height || 0);
+    const scale = shouldDownscale && longestEdge > maxSize ? (maxSize / longestEdge) : 1;
+
+    if (!shouldChromaKey && scale === 1) {
+        texture.magFilter = THREE.NearestFilter;
+        return texture;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round((sourceImage.width || 1) * scale));
+    canvas.height = Math.max(1, Math.round((sourceImage.height || 1) * scale));
+    const ctx = canvas.getContext('2d', { willReadFrequently: shouldChromaKey });
+    ctx.drawImage(sourceImage, 0, 0, canvas.width, canvas.height);
+
+    if (shouldChromaKey) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const a = data[i + 3];
+            const greenDominance = g - Math.max(r, b);
+
+            if (g > 110 && greenDominance > 35 && g > r * 1.18 && g > b * 1.18) {
+                data[i + 3] = 0;
+            } else if (a > 0 && g > 90 && greenDominance > 18 && g > r * 1.08 && g > b * 1.08) {
+                data[i + 1] = Math.min(g, Math.max(r, b) + 18);
+                data[i + 3] = Math.min(a, 220);
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    const prepared = new THREE.CanvasTexture(canvas);
+    prepared.magFilter = THREE.NearestFilter;
+    prepared.minFilter = THREE.LinearMipmapLinearFilter;
+    prepared.needsUpdate = true;
+    return prepared;
+};
+
 window.Game.getDirectionalTexture = function(baseKey, facingDir = 1) {
     const textures = window.Game.state && window.Game.state.textures;
     if (!textures) return null;
@@ -220,8 +277,7 @@ window.Game.loadGameTextures = function(onComplete) {
         loader.load(
             url,
             (tex) => {
-                tex.magFilter = THREE.NearestFilter;
-                state.textures[key] = tex;
+                state.textures[key] = window.Game.prepareLoadedTexture(key, tex);
                 finish();
             },
             undefined,
@@ -232,8 +288,7 @@ window.Game.loadGameTextures = function(onComplete) {
                     loader.load(
                         fallbackUrl,
                         (tex) => {
-                            tex.magFilter = THREE.NearestFilter;
-                            state.textures[key] = tex;
+                            state.textures[key] = window.Game.prepareLoadedTexture(key, tex);
                             finish();
                         },
                         undefined,

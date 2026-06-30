@@ -6,6 +6,12 @@ function clampPlayerValue(value, min, max) {
     return Math.max(min, Math.min(max, value));
 }
 
+function getMobileMoveBoost() {
+    const isMobile = window.Game.isMobileGraphicsDevice && window.Game.isMobileGraphicsDevice();
+    if (!isMobile) return 1;
+    return window.innerHeight > window.innerWidth ? 1.3 : 1.18;
+}
+
 function addObstacleAvoidance(avoidance, playerPos, desiredDir, obstacleCenter, nearestPoint, obstacleRadius) {
     const toPlayer = new THREE.Vector3().subVectors(playerPos, nearestPoint);
     const distance = toPlayer.length();
@@ -138,7 +144,7 @@ window.Game.updatePlayer = function(dt) {
     p.speed = baseSpeed * speedMult;
 
     // Set speed based on slow debuff
-    const currentSpeed = p.slowTimer > 0 ? 2.5 : p.speed;
+    const currentSpeed = (p.slowTimer > 0 ? 2.5 : p.speed) * getMobileMoveBoost();
 
     // 2. Handle Movement with Collision Checks & Sliding Mechanics
     const moveDist = p.pos.distanceTo(p.targetPos);
