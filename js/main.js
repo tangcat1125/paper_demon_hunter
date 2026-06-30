@@ -13,6 +13,23 @@ let primaryPointerDown = null;
 let primaryPointerDragging = false;
 const primaryDragThreshold = 10;
 
+function updateCameraModeButton() {
+    const btn = document.getElementById('camera-mode-toggle');
+    if (!btn) return;
+    const isTop = window.Game.state.cameraViewMode === 'top';
+    btn.innerText = isTop ? '🧭 視角：上視' : '🧭 視角：斜視';
+}
+
+function toggleCameraMode() {
+    const state = window.Game.state;
+    state.cameraViewMode = state.cameraViewMode === 'top' ? 'angled' : 'top';
+    state.cameraManualTimer = 0;
+    if (window.Game.handleResize) {
+        window.Game.handleResize();
+    }
+    updateCameraModeButton();
+}
+
 // Setup HTML5 Audio objects
 let bgmAudio = new Audio();
 bgmAudio.loop = true;
@@ -148,6 +165,18 @@ window.Game.init = function() {
         });
     }
 
+    const cameraModeToggle = document.getElementById('camera-mode-toggle');
+    if (cameraModeToggle) {
+        cameraModeToggle.addEventListener('click', toggleCameraMode);
+        updateCameraModeButton();
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if ((e.key === 'v' || e.key === 'V') && state.gameActive) {
+            toggleCameraMode();
+        }
+    });
+
     // Setup starting overlay selection options
     const priestCard = document.getElementById('char-priest');
     const nunCard = document.getElementById('char-nun');
@@ -191,8 +220,12 @@ window.Game.init = function() {
                 // Instantiate map assets, player & houses after textures are loaded
                 window.Game.createGround();
                 window.Game.createObstacles();
+                const safeSpawn = window.Game.findSafePlayerSpawn ? window.Game.findSafePlayerSpawn() : new THREE.Vector3(0, 1.5, 0);
+                state.player.pos.copy(safeSpawn);
+                state.player.targetPos.copy(safeSpawn);
                 window.Game.createPlayer();
                 window.Game.createBuildings();
+                window.Game.ensurePlayerFree && window.Game.ensurePlayerFree();
 
                 // Spawn initial minions
                 for (let i = 0; i < 3; i++) {
@@ -223,8 +256,12 @@ window.Game.init = function() {
         window.Game.loadGameTextures(() => {
             window.Game.createGround();
             window.Game.createObstacles();
+            const safeSpawn = window.Game.findSafePlayerSpawn ? window.Game.findSafePlayerSpawn() : new THREE.Vector3(0, 1.5, 0);
+            state.player.pos.copy(safeSpawn);
+            state.player.targetPos.copy(safeSpawn);
             window.Game.createPlayer();
             window.Game.createBuildings();
+            window.Game.ensurePlayerFree && window.Game.ensurePlayerFree();
 
             for (let i = 0; i < 3; i++) {
                 window.Game.spawnMinion(true);
@@ -511,7 +548,7 @@ window.Game.spawnSupportAlly = function() {
     if (!state.gameActive || !p || p.holyDemonSupportActive) return;
 
     const supportCharacter = state.selectedCharacter === 'nun' ? 'priest' : 'nun';
-    const texKey = supportCharacter + '_run_1';
+    const texKey = window.Game.getCharacterTextureKey(supportCharacter, 'run', 0);
     const texture = state.useGraphicsMode ? window.Game.getDirectionalTexture(texKey, p.facingDir || 1) : window.Game.createCardTexture(supportCharacter === 'nun' ? '修女' : '神父', '#4444aa', -1);
     const mat = new THREE.SpriteMaterial({ map: texture, depthWrite: false });
     const sprite = new THREE.Sprite(mat);
@@ -638,8 +675,10 @@ window.Game.updateCombatSystems = function(dt) {
         if (supportData.animTimer >= 0.1) {
             supportData.animTimer = 0;
             supportData.animFrame = ((supportData.animFrame || 0) + 1) % 3;
-            const prefix = supportData.character === 'nun' ? 'nun_run_' : 'priest_run_';
-            const nextMap = window.Game.getDirectionalTexture(prefix + (supportData.animFrame + 1), side);
+            const nextMap = window.Game.getDirectionalTexture(
+                window.Game.getCharacterTextureKey(supportData.character, 'run', supportData.animFrame),
+                side
+            );
             if (nextMap) {
                 p.holyDemonSupportSprite.material.map = nextMap;
             }
@@ -783,6 +822,7 @@ function updateAutoCameraAngle(dt) {
     const state = window.Game.state;
     const p = state.player;
     if (!p || !p.sprite) return;
+    if (state.cameraViewMode === 'top') return;
 
     if (state.cameraManualTimer > 0) {
         state.cameraManualTimer = Math.max(0, state.cameraManualTimer - dt);
@@ -842,9 +882,13 @@ function onPointerTap(event) {
     raycaster.ray.intersectPlane(plane, targetPos);
     
     if (targetPos) {
-        // Prevent player from clicking inside obstacles to walk
-        if (!window.Game.checkCollision(new THREE.Vector3(targetPos.x, 1.5, targetPos.z), 1.2)) {
-            state.player.targetPos.set(targetPos.x, 1.5, targetPos.z);
+        const safeTarget = window.Game.findNearestFreePoint(
+            new THREE.Vector3(targetPos.x, 1.5, targetPos.z),
+            window.Game.PLAYER_RADIUS || 1.2,
+            20
+        );
+        if (safeTarget) {
+            state.player.targetPos.copy(safeTarget);
         }
     }
 }
@@ -891,20 +935,34 @@ function animate() {
             lookAhead: 5
         };
         const angle = state.cameraAngle || 0;
-        const offsetX = Math.sin(angle) * viewport.cameraDistance;
-        const offsetZ = Math.cos(angle) * viewport.cameraDistance;
-        
-        const targetCamPos = new THREE.Vector3(
-            state.player.sprite.position.x + offsetX,
-            viewport.cameraHeight,
-            state.player.sprite.position.z + offsetZ
-        );
-        
-        camera.position.lerp(targetCamPos, 0.08); // slightly faster lerp for responsive camera drag rotation
-        
-        const lookX = state.player.sprite.position.x - Math.sin(angle) * viewport.lookAhead;
-        const lookZ = state.player.sprite.position.z - Math.cos(angle) * viewport.lookAhead;
-        camera.lookAt(lookX, 0, lookZ);
+        if (viewport.isTopView) {
+            const targetCamPos = new THREE.Vector3(
+                state.player.sprite.position.x,
+                viewport.cameraHeight,
+                state.player.sprite.position.z + viewport.cameraDistance
+            );
+            camera.position.lerp(targetCamPos, 0.12);
+            camera.lookAt(state.player.sprite.position.x, 0, state.player.sprite.position.z);
+        } else {
+            const offsetX = Math.sin(angle) * viewport.cameraDistance;
+            const offsetZ = Math.cos(angle) * viewport.cameraDistance;
+            
+            const targetCamPos = new THREE.Vector3(
+                state.player.sprite.position.x + offsetX,
+                viewport.cameraHeight,
+                state.player.sprite.position.z + offsetZ
+            );
+            
+            camera.position.lerp(targetCamPos, 0.08); // slightly faster lerp for responsive camera drag rotation
+            
+            const lookX = state.player.sprite.position.x - Math.sin(angle) * viewport.lookAhead;
+            const lookZ = state.player.sprite.position.z - Math.cos(angle) * viewport.lookAhead;
+            camera.lookAt(lookX, 0, lookZ);
+        }
+    }
+
+    if (camera && state.player && state.player.sprite && window.Game.updateObstacleOcclusion) {
+        window.Game.updateObstacleOcclusion(camera, state.player.sprite, delta);
     }
 
     // Bob and rotate the Holy Relic Sprite if active
@@ -1035,11 +1093,14 @@ window.Game.advanceToNextStage = function() {
     // 3. Reset player stats
     state.player.hp = state.player.maxHp;
     state.player.relicFound = false;
-    state.player.pos.set(0, 1.5, 0);
-    state.player.targetPos.set(0, 1.5, 0);
+    const safeSpawn = window.Game.findSafePlayerSpawn ? window.Game.findSafePlayerSpawn() : new THREE.Vector3(0, 1.5, 0);
+    state.player.pos.copy(safeSpawn);
+    state.player.targetPos.copy(safeSpawn);
     if (state.player.sprite) {
         state.player.sprite.position.copy(state.player.pos);
+        state.player.sprite.position.y = 2.2;
     }
+    window.Game.ensurePlayerFree && window.Game.ensurePlayerFree();
     
     // Reset player debuffs
     state.player.slowTimer = 0;

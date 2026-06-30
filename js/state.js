@@ -18,6 +18,7 @@ window.Game.state = {
     enemiesDefeated: 0,          // Track number of enemies defeated
     cameraAngle: 0,              // Track camera rotation angle
     cameraManualTimer: 0,        // Delay before auto camera retakes control
+    cameraViewMode: 'angled',    // 'angled' or 'top'
     textures: {},                // Loaded sprites container
 
     entities: [],     // WebGL entities list for raycaster intersection checks

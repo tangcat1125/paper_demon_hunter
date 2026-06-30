@@ -1,6 +1,7 @@
 // Card Texture Generator & Floating Health Bar Canvas engine (Global Namespace)
 
 window.Game = window.Game || {};
+window.Game.assetVersion = '20260630-character-map-fix-2';
 
 window.Game.createCardTexture = function(text, bgColor, hpPercent = 1.0, isBoss = false, isBuilding = false) {
     const canvas = document.createElement('canvas');
@@ -156,6 +157,41 @@ window.Game.getDirectionalTexture = function(baseKey, facingDir = 1) {
     return textures[baseKey] || null;
 };
 
+window.Game.characterTextureMap = {
+    priest: {
+        idle: 'priest_idle',
+        run: ['priest_run_1', 'priest_run_2', 'priest_run_3'],
+        shoot: ['priest_shoot_1', 'priest_shoot_2', 'priest_shoot_3', 'priest_shoot_4', 'priest_shoot_5', 'priest_shoot_6']
+    },
+    nun: {
+        idle: 'nun_idle',
+        run: ['nun_run_1', 'nun_run_2', 'nun_run_3'],
+        shoot: ['nun_shoot_1', 'nun_shoot_2', 'nun_shoot_3', 'nun_shoot_4', 'nun_shoot_5', 'nun_shoot_6']
+    }
+};
+
+window.Game.getCharacterTextureKey = function(character, action, frameIndex = 0) {
+    const characterMap = window.Game.characterTextureMap[character];
+    if (!characterMap) return null;
+    if (action === 'idle') return characterMap.idle;
+    const sequence = characterMap[action];
+    if (!sequence || !sequence.length) return characterMap.idle;
+    const safeIndex = Math.max(0, Math.min(frameIndex, sequence.length - 1));
+    return sequence[safeIndex];
+};
+
+window.Game.shouldPreferEmbeddedAsset = function(key) {
+    // Character and building visuals change often during iteration,
+    // so always prefer the real asset files first to avoid stale embedded art.
+    return !/^(priest_|nun_|building_)/.test(key);
+};
+
+window.Game.buildAssetUrl = function(path) {
+    const basePath = encodeURI(path);
+    const separator = basePath.includes('?') ? '&' : '?';
+    return `${basePath}${separator}v=${encodeURIComponent(window.Game.assetVersion || '1')}`;
+};
+
 window.Game.loadGameTextures = function(onComplete) {
     const state = window.Game.state;
     if (!state.useGraphicsMode) {
@@ -163,13 +199,16 @@ window.Game.loadGameTextures = function(onComplete) {
         return;
     }
 
+    // Clear stale runtime texture references before loading a fresh character/building set.
+    state.textures = {};
+
     const loader = new THREE.TextureLoader();
     
     const assetsToLoad = {
         priest_idle: 'assets/priest/priest_idle.png',
-        priest_run_1: 'assets/priest/run/priest_run_1.png',
-        priest_run_2: 'assets/priest/run/priest_run_2.png',
-        priest_run_3: 'assets/priest/run/priest_run_3.png',
+        priest_run_1: 'assets/priest/run_clean/priest_run_1.png',
+        priest_run_2: 'assets/priest/run_clean/priest_run_2.png',
+        priest_run_3: 'assets/priest/run_clean/priest_run_3.png',
         priest_shoot_1: 'assets/priest/shoot/priest_walk_1.png',
         priest_shoot_2: 'assets/priest/shoot/priest_walk_2.png',
         priest_shoot_3: 'assets/priest/shoot/priest_walk_3.png',
@@ -178,9 +217,9 @@ window.Game.loadGameTextures = function(onComplete) {
         priest_shoot_6: 'assets/priest/shoot/priest_walk_6.png',
         
         nun_idle: 'assets/nun/nun_idle.png',
-        nun_run_1: 'assets/nun/run/nun_run_1.png',
-        nun_run_2: 'assets/nun/run/nun_run_2.png',
-        nun_run_3: 'assets/nun/run/nun_run_3.png',
+        nun_run_1: 'assets/nun/run_clean/nun_run_1.png',
+        nun_run_2: 'assets/nun/run_clean/nun_run_2.png',
+        nun_run_3: 'assets/nun/run_clean/nun_run_3.png',
         nun_shoot_1: 'assets/nun/shoot/nun_action_1.png',
         nun_shoot_2: 'assets/nun/shoot/nun_action_2.png',
         nun_shoot_3: 'assets/nun/shoot/nun_action_3.png',
@@ -272,16 +311,54 @@ window.Game.loadGameTextures = function(onComplete) {
     };
 
     for (let key in assetsToLoad) {
-        const url = (window.Game.embeddedAssets && window.Game.embeddedAssets[key]) ? window.Game.embeddedAssets[key] : encodeURI(assetsToLoad[key]);
+        const assetUrl = window.Game.buildAssetUrl(assetsToLoad[key]);
+        const embeddedUrl = (window.Game.embeddedAssets && window.Game.embeddedAssets[key]) ? window.Game.embeddedAssets[key] : null;
+        const preferEmbedded = window.Game.shouldPreferEmbeddedAsset(key);
+        const primaryUrl = preferEmbedded && embeddedUrl ? embeddedUrl : assetUrl;
+        const secondaryUrl = preferEmbedded ? assetUrl : embeddedUrl;
         
         loader.load(
-            url,
+            primaryUrl,
             (tex) => {
                 state.textures[key] = window.Game.prepareLoadedTexture(key, tex);
                 finish();
             },
             undefined,
             () => {
+                if (secondaryUrl) {
+                    loader.load(
+                        secondaryUrl,
+                        (tex) => {
+                            state.textures[key] = window.Game.prepareLoadedTexture(key, tex);
+                            finish();
+                        },
+                        undefined,
+                        () => {
+                            const fallbackKey = legacyFallbacks[key];
+                            const fallbackUrl = fallbackKey && window.Game.embeddedAssets ? window.Game.embeddedAssets[fallbackKey] : null;
+                            if (fallbackUrl) {
+                                loader.load(
+                                    fallbackUrl,
+                                    (tex) => {
+                                        state.textures[key] = window.Game.prepareLoadedTexture(key, tex);
+                                        finish();
+                                    },
+                                    undefined,
+                                    (fallbackErr) => {
+                                        console.error("Failed to load texture key:", key, fallbackErr);
+                                        window.Game.failedTextures.push(key);
+                                        finish();
+                                    }
+                                );
+                                return;
+                            }
+                            console.error("Failed to load texture key:", key);
+                            window.Game.failedTextures.push(key);
+                            finish();
+                        }
+                    );
+                    return;
+                }
                 const fallbackKey = legacyFallbacks[key];
                 const fallbackUrl = fallbackKey && window.Game.embeddedAssets ? window.Game.embeddedAssets[fallbackKey] : null;
                 if (fallbackUrl) {

@@ -7,6 +7,18 @@ window.Game.createBuildings = function() {
     const state = window.Game.state;
     const buildingCount = window.Game.TOTAL_BUILDINGS;
     const relicIndex = Math.floor(Math.random() * buildingCount);
+    const safeZoneRadius = window.Game.PLAYER_SAFE_ZONE_RADIUS || 16;
+    const candidateSlots = [
+        [-28, -30], [0, -32], [28, -30],
+        [-34, -8], [34, -8],
+        [-34, 12], [34, 12],
+        [-28, 32], [0, 34], [28, 32],
+        [-18, -34], [18, -34], [-18, 36], [18, 36]
+    ];
+    const shuffledSlots = candidateSlots
+        .map((slot) => ({ slot, sort: Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map((entry) => entry.slot);
 
     for (let i = 0; i < buildingCount; i++) {
         const b = {
@@ -15,27 +27,53 @@ window.Game.createBuildings = function() {
             maxHp: 100,
             hasRelic: (i === relicIndex),
             isRepaired: false,
-            pos: new THREE.Vector3()
+            pos: new THREE.Vector3(),
+            halfWidth: 5.8,
+            halfDepth: 5.8
         };
         
         let validPos = false;
-        while (!validPos) {
-            const x = (Math.random() - 0.5) * (window.Game.MAP_SIZE - 30);
-            const z = (Math.random() - 0.5) * (window.Game.MAP_SIZE - 30);
-            const tempPos = new THREE.Vector3(x, 6.0, z); // Height 6.0 center for scale 12 sprite
-            
-            // Check that it doesn't overlap the player spawn center, obstacles, or other buildings
-            // Spaced out with clearance 8.0
-            if (tempPos.length() >= 25 && !window.Game.checkCollision(tempPos, 8.0)) {
+        for (let slotIndex = 0; slotIndex < shuffledSlots.length && !validPos; slotIndex++) {
+            const [x, z] = shuffledSlots[slotIndex];
+            const inPlayerSafeZone = Math.hypot(x, z) < safeZoneRadius + 8;
+            if (inPlayerSafeZone) continue;
+            if (!window.Game.isFootprintBlocked(x, z, b.halfWidth, b.halfDepth, 4.5)) {
                 validPos = true;
-                b.pos.copy(tempPos);
+                b.pos.set(x, 6.0, z);
+                shuffledSlots.splice(slotIndex, 1);
             }
         }
 
-        const mat = new THREE.SpriteMaterial({ map: window.Game.getBuildingTexture(b) });
+        let attempts = 0;
+        while (!validPos && attempts < 240) {
+            attempts++;
+            const x = (Math.random() - 0.5) * (window.Game.MAP_SIZE - 44);
+            const z = (Math.random() - 0.5) * (window.Game.MAP_SIZE - 44);
+            const awayFromSpawn = Math.hypot(x, z) >= safeZoneRadius + 8;
+            const insideCentralLane = Math.abs(x) < 12 && Math.abs(z) < 18;
+
+            if (awayFromSpawn &&
+                !insideCentralLane &&
+                !window.Game.isFootprintBlocked(x, z, b.halfWidth, b.halfDepth, 4.5)) {
+                validPos = true;
+                b.pos.set(x, 6.0, z);
+            }
+        }
+
+        if (!validPos) {
+            const fallback = window.Game.findNearestFreePoint(
+                new THREE.Vector3(((i % 2 === 0) ? -1 : 1) * (safeZoneRadius + 14 + (i % 3) * 6), 1.5, -28 + i * 6),
+                b.halfWidth,
+                28
+            );
+            b.pos.set(fallback.x, 6.0, fallback.z);
+        }
+
+        const mat = new THREE.SpriteMaterial({ map: window.Game.getBuildingTexture(b), depthWrite: false });
         b.sprite = new THREE.Sprite(mat);
         b.sprite.scale.set(12, 12, 1); // Scaled up 3x character size
         b.sprite.position.copy(b.pos);
+        b.sprite.renderOrder = 10;
         b.sprite.userData = { entity: b };
         
         scene.add(b.sprite);

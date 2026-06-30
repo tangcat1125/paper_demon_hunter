@@ -12,10 +12,22 @@ function getMobileMoveBoost() {
     return window.innerHeight > window.innerWidth ? 1.3 : 1.18;
 }
 
+function getPlayerVisualScale() {
+    const viewport = window.Game.getViewportTuning ? window.Game.getViewportTuning() : { isPortrait: false };
+    const isMobile = window.Game.isMobileGraphicsDevice && window.Game.isMobileGraphicsDevice();
+    if (!isMobile) {
+        return { sprite: 4, hpWidth: 3.5, hpHeight: 0.4, energyWidth: 3.5, energyHeight: 0.35 };
+    }
+    if (viewport.isPortrait) {
+        return { sprite: 3.15, hpWidth: 2.8, hpHeight: 0.34, energyWidth: 2.8, energyHeight: 0.3 };
+    }
+    return { sprite: 3.55, hpWidth: 3.15, hpHeight: 0.37, energyWidth: 3.15, energyHeight: 0.32 };
+}
+
 function addObstacleAvoidance(avoidance, playerPos, desiredDir, obstacleCenter, nearestPoint, obstacleRadius) {
     const toPlayer = new THREE.Vector3().subVectors(playerPos, nearestPoint);
     const distance = toPlayer.length();
-    const influenceRadius = obstacleRadius + 1.15;
+    const influenceRadius = window.Game.PLAYER_RADIUS + Math.min(2.2, 1.1 + obstacleRadius * 0.08);
     if (distance <= 0.001 || distance >= influenceRadius) return;
 
     const away = toPlayer.normalize();
@@ -69,41 +81,48 @@ window.Game.createPlayer = function() {
     p.animTimer = 0;
     p.animFrame = 0;
     p.shootAnimTimer = 0;
-    p.weaponDamage = state.selectedCharacter === 'nun' ? 36 : 24;
-    p.autoShootInterval = state.selectedCharacter === 'nun' ? 0.95 : 0.55;
+    p.weaponDamage = state.selectedCharacter === "nun" ? 36 : 24;
+    p.autoShootInterval = state.selectedCharacter === "nun" ? 0.95 : 0.55;
 
-    // 1. Create main sprite based on graphics mode selection
-    let texture;
+    // Prefer the selected sprite sheet, but never allow the player to vanish
+    // if a runtime texture missed one frame during loading or cache refresh.
+    const displayName = state.selectedCharacter === "nun" ? "聖經修女" : "驅魔神父";
+    let texture = null;
     if (state.useGraphicsMode) {
-        texture = window.Game.getDirectionalTexture(state.selectedCharacter + '_idle', p.facingDir || 1);
-    } else {
-        const displayName = state.selectedCharacter === 'nun' ? '聖經修女' : '驅魔神父';
-        texture = window.Game.createCardTexture(displayName, '#3366cc', -1);
+        texture = window.Game.getDirectionalTexture(
+            window.Game.getCharacterTextureKey(state.selectedCharacter, "idle"),
+            p.facingDir || 1
+        );
+    }
+    if (!texture) {
+        texture = window.Game.createCardTexture(displayName, "#3366cc", -1);
     }
 
-    const mat = new THREE.SpriteMaterial({ map: texture, depthWrite: false });
+    const mat = new THREE.SpriteMaterial({ map: texture, depthWrite: false, depthTest: false });
+    const scale = getPlayerVisualScale();
     p.sprite = new THREE.Sprite(mat);
-    p.sprite.scale.set(4, 4, 1);
+    p.sprite.scale.set(scale.sprite, scale.sprite, 1);
     p.sprite.position.copy(p.pos);
+    p.sprite.position.y = 2.2;
+    p.sprite.renderOrder = 30;
     scene.add(p.sprite);
 
-    // 2. Create floating 3D health bar sprite above player head
     const hpTexture = window.Game.createHealthBarTexture(1.0);
-    const hpMat = new THREE.SpriteMaterial({ map: hpTexture, depthWrite: false });
+    const hpMat = new THREE.SpriteMaterial({ map: hpTexture, depthWrite: false, depthTest: false });
     p.hpBarSprite = new THREE.Sprite(hpMat);
-    p.hpBarSprite.scale.set(3.5, 0.4, 1);
+    p.hpBarSprite.scale.set(scale.hpWidth, scale.hpHeight, 1);
     p.hpBarSprite.position.set(p.pos.x, p.pos.y + 2.5, p.pos.z);
+    p.hpBarSprite.renderOrder = 40;
     scene.add(p.hpBarSprite);
 
-    // 2.5 Create floating Saint/Demon energy bar above the health bar
-    const energyTexture = window.Game.createHealthBarTexture(0.0, '#ffd700');
-    const energyMat = new THREE.SpriteMaterial({ map: energyTexture, depthWrite: false });
+    const energyTexture = window.Game.createHealthBarTexture(0.0, "#ffd700");
+    const energyMat = new THREE.SpriteMaterial({ map: energyTexture, depthWrite: false, depthTest: false });
     p.energyBarSprite = new THREE.Sprite(energyMat);
-    p.energyBarSprite.scale.set(3.5, 0.35, 1);
+    p.energyBarSprite.scale.set(scale.energyWidth, scale.energyHeight, 1);
     p.energyBarSprite.position.set(p.pos.x, p.pos.y + 3.05, p.pos.z);
+    p.energyBarSprite.renderOrder = 41;
     scene.add(p.energyBarSprite);
 
-    // 3. Create a warm holy PointLight source centered on the player
     p.light = new THREE.PointLight(0xfff5d7, 2.5, 18, 1.2);
     p.light.position.copy(p.pos);
     scene.add(p.light);
@@ -112,11 +131,9 @@ window.Game.createPlayer = function() {
 window.Game.updatePlayer = function(dt) {
     const state = window.Game.state;
     const p = state.player;
-    const isNun = state.selectedCharacter === 'nun';
-    const runPrefix = isNun ? 'nun_run_' : 'priest_run_';
-    const shootPrefix = isNun ? 'nun_shoot_' : 'priest_shoot_';
+    const isNun = state.selectedCharacter === "nun";
+    const characterKey = isNun ? "nun" : "priest";
 
-    // 1. Tick Debuff Timers
     if (p.slowTimer > 0) {
         p.slowTimer -= dt;
     }
@@ -125,7 +142,6 @@ window.Game.updatePlayer = function(dt) {
     }
     if (p.curseTimer > 0) {
         p.curseTimer -= dt;
-        // Deal 8 HP continuous damage per second
         window.Game.takeDamage(8 * dt);
     }
     if (p.tapComboTimer > 0) {
@@ -136,26 +152,29 @@ window.Game.updatePlayer = function(dt) {
         }
     }
 
-    // Calculate player speed based on enemies defeated with a slower, more controlled progression
     const difficulty = window.Game.getDifficultyProfile();
     const baseSpeed = difficulty.playerBaseSpeed;
     const speedStages = Math.floor((state.enemiesDefeated || 0) / difficulty.playerSpeedUpgradeEvery);
     const speedMult = Math.min(difficulty.playerSpeedCap, 1 + speedStages * difficulty.playerSpeedUpgradeStep);
     p.speed = baseSpeed * speedMult;
 
-    // Set speed based on slow debuff
     const currentSpeed = (p.slowTimer > 0 ? 2.5 : p.speed) * getMobileMoveBoost();
-
-    // 2. Handle Movement with Collision Checks & Sliding Mechanics
     const moveDist = p.pos.distanceTo(p.targetPos);
+    const scale = getPlayerVisualScale();
+
     if (moveDist > 0.1) {
-        // Animate walk frames if graphics mode is enabled
         if (state.useGraphicsMode) {
             p.animTimer += dt;
             if (p.animTimer >= 0.1) {
                 p.animFrame = (p.animFrame + 1) % 3;
                 p.animTimer = 0;
-                p.sprite.material.map = window.Game.getDirectionalTexture(runPrefix + (p.animFrame + 1), p.facingDir || 1);
+                const runTexture = window.Game.getDirectionalTexture(
+                    window.Game.getCharacterTextureKey(characterKey, "run", p.animFrame),
+                    p.facingDir || 1
+                );
+                if (runTexture) {
+                    p.sprite.material.map = runTexture;
+                }
             }
         }
 
@@ -165,7 +184,6 @@ window.Game.updatePlayer = function(dt) {
             ? dir.clone().add(avoidance.multiplyScalar(0.42)).normalize()
             : dir;
 
-        // Flip based on on-screen horizontal movement, not world X.
         const camera = window.Game.camera;
         if (camera) {
             const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
@@ -184,21 +202,26 @@ window.Game.updatePlayer = function(dt) {
         } else if (moveDir.x > 0.05) {
             p.facingDir = 1;
         }
+
         if (state.useGraphicsMode) {
-            p.sprite.material.map = window.Game.getDirectionalTexture(runPrefix + (p.animFrame + 1), p.facingDir || 1);
+            const runTexture = window.Game.getDirectionalTexture(
+                window.Game.getCharacterTextureKey(characterKey, "run", p.animFrame),
+                p.facingDir || 1
+            );
+            if (runTexture) {
+                p.sprite.material.map = runTexture;
+            }
         }
-        p.sprite.scale.x = 4;
+        p.sprite.scale.x = scale.sprite;
+        p.sprite.scale.y = scale.sprite;
 
         const stepDist = Math.min(currentSpeed * dt, moveDist);
         const nextPos = p.pos.clone().add(moveDir.clone().multiplyScalar(stepDist));
 
-        // Bounding check (Radius 1.2 around player center)
         if (!window.Game.checkCollision(nextPos, 1.2)) {
             p.pos.copy(nextPos);
         } else {
-            // Sliding helper: try sliding along X axis only
             const stepX = new THREE.Vector3(nextPos.x, p.pos.y, p.pos.z);
-            // Try sliding along Z axis only
             const stepZ = new THREE.Vector3(p.pos.x, p.pos.y, nextPos.z);
             const steerStep = p.pos.clone().add(avoidance.clone().multiplyScalar(stepDist));
 
@@ -209,13 +232,12 @@ window.Game.updatePlayer = function(dt) {
             } else if (avoidance.lengthSq() > 0.0001 && !window.Game.checkCollision(steerStep, 1.2)) {
                 p.pos.copy(steerStep);
             } else {
-                // Completely blocked, cancel target movement
                 p.targetPos.copy(p.pos);
             }
         }
         p.sprite.position.copy(p.pos);
+        p.sprite.position.y = 2.2;
     } else {
-        // Play action animation if stationary shooting, otherwise reset to idle
         if (state.useGraphicsMode) {
             if (p.shootAnimTimer > 0) {
                 p.shootAnimTimer -= dt;
@@ -224,21 +246,35 @@ window.Game.updatePlayer = function(dt) {
                     p.animFrame = (p.animFrame + 1) % 6;
                     p.animTimer = 0;
                 }
-                p.sprite.material.map = window.Game.getDirectionalTexture(shootPrefix + (p.animFrame + 1), p.facingDir || 1);
+                const shootTexture = window.Game.getDirectionalTexture(
+                    window.Game.getCharacterTextureKey(characterKey, "shoot", p.animFrame),
+                    p.facingDir || 1
+                );
+                if (shootTexture) {
+                    p.sprite.material.map = shootTexture;
+                }
             } else {
                 p.animFrame = 0;
                 p.animTimer = 0;
-                p.sprite.material.map = window.Game.getDirectionalTexture(state.selectedCharacter + '_idle', p.facingDir || 1);
+                const idleTexture = window.Game.getDirectionalTexture(
+                    window.Game.getCharacterTextureKey(state.selectedCharacter, "idle"),
+                    p.facingDir || 1
+                );
+                if (idleTexture) {
+                    p.sprite.material.map = idleTexture;
+                }
             }
         }
-        p.sprite.scale.x = 4;
+        p.sprite.scale.x = scale.sprite;
+        p.sprite.scale.y = scale.sprite;
     }
 
-    // Update floating health bar and holy light position to follow player
     if (p.hpBarSprite) {
+        p.hpBarSprite.scale.set(scale.hpWidth, scale.hpHeight, 1);
         p.hpBarSprite.position.set(p.pos.x, p.pos.y + 2.5, p.pos.z);
     }
     if (p.energyBarSprite) {
+        p.energyBarSprite.scale.set(scale.energyWidth, scale.energyHeight, 1);
         p.energyBarSprite.position.set(p.pos.x, p.pos.y + 3.05, p.pos.z);
         if (window.Game.updatePlayerEnergyBar) {
             window.Game.updatePlayerEnergyBar();
@@ -247,18 +283,17 @@ window.Game.updatePlayer = function(dt) {
     if (p.light) {
         p.light.position.copy(p.pos);
         const hour = Math.floor((state.gameTime * 24 + 18) % 24);
-        const isNight = (hour >= 20 || hour < 5);
-        p.light.intensity = isNight ? 3.5 : 1.5; // Brighter holy light source at night
+        const isNight = hour >= 20 || hour < 5;
+        p.light.intensity = isNight ? 3.5 : 1.5;
     }
 
-    // 3. Auto Shoot Timer and Attack Trigger
     p.autoShootTimer += dt;
     if (p.autoShootTimer >= p.autoShootInterval && state.enemies.length > 0) {
         let nearest = null;
         let minDist = Infinity;
         for (let e of state.enemies) {
             const d = p.pos.distanceTo(e.pos);
-            if (d < minDist && d < 40) { 
+            if (d < minDist && d < 40) {
                 minDist = d;
                 nearest = e;
             }
@@ -266,7 +301,7 @@ window.Game.updatePlayer = function(dt) {
         if (nearest) {
             window.Game.shoot(nearest.pos);
             p.autoShootTimer = 0;
-            p.shootAnimTimer = 0.35; // Trigger shooting action animation
+            p.shootAnimTimer = 0.35;
             p.animFrame = 0;
             p.animTimer = 0;
         }
